@@ -1,0 +1,11 @@
+# Python environment and cache
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Secrets and environment variables
+.env
+
+# OS generated files (since you are on a Mac)
+.DS_Store

@@ -22,3 +22,16 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# reference files
+Project_overview.md
+features.txt
+
+# backend secrets & build output
+backend/.env
+backend/dist/
+backend/.env.example
+backend/uploads
+
+#frontend secrets
+frontend/.env

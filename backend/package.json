@@ -1,0 +1,46 @@
+{
+    "name": "civicsync-backend",
+    "version": "1.0.0",
+    "description": "CivicSync Express/MongoDB backend",
+    "main": "dist/index.js",
+    "type": "commonjs",
+    "scripts": {
+        "dev": "nodemon --exec ts-node src/index.ts",
+        "build": "tsc",
+        "start": "node dist/index.js",
+        "seed": "ts-node src/scripts/seed.ts",
+        "seed:bills": "ts-node src/scripts/seedBills.ts",
+        "seed:bills:overwrite": "ts-node src/scripts/seedBills.ts --overwrite"
+    },
+    "dependencies": {
+        "bcryptjs": "^3.0.3",
+        "cloudinary": "^2.9.0",
+        "cookie-parser": "^1.4.7",
+        "cors": "^2.8.6",
+        "dotenv": "^17.3.1",
+        "express": "^5.2.1",
+        "express-validator": "^7.3.1",
+        "firebase": "^12.10.0",
+        "firebase-admin": "^13.7.0",
+        "jsonwebtoken": "^9.0.3",
+        "mongoose": "^9.2.2",
+        "morgan": "^1.10.1",
+        "multer": "^2.0.2",
+        "pdfkit": "^0.17.2",
+        "razorpay": "^2.9.6"
+    },
+    "devDependencies": {
+        "@types/bcryptjs": "^2.4.6",
+        "@types/cookie-parser": "^1.4.10",
+        "@types/cors": "^2.8.19",
+        "@types/express": "^5.0.6",
+        "@types/jsonwebtoken": "^9.0.10",
+        "@types/morgan": "^1.9.10",
+        "@types/multer": "^2.0.0",
+        "@types/node": "^25.3.1",
+        "@types/pdfkit": "^0.17.5",
+        "nodemon": "^3.1.14",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.9.3"
+    }
+}
