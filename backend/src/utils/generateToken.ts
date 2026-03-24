@@ -41,20 +41,22 @@ export const setTokenCookie = (
   ttl: string,
 ): void => {
   const ms = parseTTLtoMs(ttl);
+  const isProd = process.env.NODE_ENV === "production";
   res.cookie("civicsync_token", token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    secure: isProd,
+    sameSite: isProd ? "none" : "strict",
     maxAge: ms,
   });
 };
 
 /** Clears the auth cookie (logout). */
 export const clearTokenCookie = (res: Response): void => {
+  const isProd = process.env.NODE_ENV === "production";
   res.clearCookie("civicsync_token", {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    secure: isProd,
+    sameSite: isProd ? "none" : "strict",
   });
 };
 
