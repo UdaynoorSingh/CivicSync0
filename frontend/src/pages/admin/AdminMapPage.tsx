@@ -5,7 +5,7 @@ import "leaflet/dist/leaflet.css";
 import * as api from "../../lib/api";
 import type { HeatmapDistrict } from "../../lib/api";
 
-const HARYANA_CENTER: [number, number] = [29.0588, 76.0856];
+const INDIA_CENTER: [number, number] = [20.5937, 78.9629];
 
 const DAYS_OPTIONS = [
   { label: "7 days", value: 7 },
@@ -53,7 +53,7 @@ export default function AdminMapPage() {
   const maxCount = Math.max(...districts.map((d) => d.count), 1);
   const mapCenter: [number, number] = districts[0]
     ? [districts[0].lat, districts[0].lng]
-    : HARYANA_CENTER;
+    : INDIA_CENTER;
 
   const CATEGORIES = [
     "",
@@ -119,7 +119,7 @@ export default function AdminMapPage() {
         ) : (
           <MapContainer
             center={mapCenter}
-            zoom={8}
+            zoom={5}
             scrollWheelZoom
             style={{ height: "100%", width: "100%" }}
           >

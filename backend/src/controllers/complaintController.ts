@@ -5,6 +5,45 @@ import { District } from "../models/District";
 import { Complaint } from "../models/Complaint";
 import { generateRefNumber } from "../utils/generateRefNumber";
 import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload";
+import { getStateCoords } from "../utils/stateCoordinates";
+
+/* ─── Nominatim geocoder (free, no API key needed) ────────────────────────── */
+async function geocodeAddress(
+  streetAddress: string,
+  city: string,
+  state: string,
+): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const query = [streetAddress, city, state, "India"]
+      .filter(Boolean)
+      .join(", ");
+
+    const url =
+      "https://nominatim.openstreetmap.org/search?" +
+      new URLSearchParams({ format: "json", limit: "1", q: query }).toString();
+
+    const res = await fetch(url, {
+      headers: { "User-Agent": "CivicSync/1.0" },
+      signal: AbortSignal.timeout(5000),
+    });
+
+    if (!res.ok) return null;
+
+    const data = (await res.json()) as { lat: string; lon: string }[];
+    if (!data.length) return null;
+
+    const lat = parseFloat(data[0].lat);
+    const lng = parseFloat(data[0].lon);
+    if (isNaN(lat) || isNaN(lng)) return null;
+
+    return { lat, lng };
+  } catch {
+    // Network error, timeout, etc. — fall back to state coords
+    return null;
+  }
+}
+
+/* ─── Submit Complaint ────────────────────────────────────────────────────── */
 
 export const submitComplaint = async (
   req: Request,
@@ -84,23 +123,50 @@ export const submitComplaint = async (
       return;
     }
 
-    // Auto-create the district/state record if it doesn't exist
-    // IMPORTANT: The District DB collection represents States now.
+    // ── Resolve state coordinates ──────────────────────────────────────────
     const stateName = (state || districtName || "Unknown").trim();
+    const stateCoord = getStateCoords(stateName);
+    const stateLat = stateCoord?.lat ?? 20.5937;
+    const stateLng = stateCoord?.lng ?? 78.9629;
+
+    // ── Find or create the District (state) record ─────────────────────────
     let district = await District.findOne({
       name: new RegExp(`^${stateName}$`, "i"),
     });
+
     if (!district) {
+      // Brand-new district → use correct state centre coordinates
       district = await District.create({
         name: stateName,
         state: stateName,
         stateCode: stateName.substring(0, 2).toUpperCase(),
         pinCodes: pincode && pincode !== "000000" ? [pincode] : [],
-        coordinates: { latitude: 20.5937, longitude: 78.9629 },
+        coordinates: { latitude: stateLat, longitude: stateLng },
         isActive: true,
       });
+    } else if (
+      stateCoord &&
+      district.coordinates.latitude === 20.5937 &&
+      district.coordinates.longitude === 78.9629
+    ) {
+      // Existing district still has the old generic default → fix it now
+      district.coordinates = { latitude: stateLat, longitude: stateLng };
+      await district.save();
     }
 
+    // ── Geocode the full address; fall back to state centre ────────────────
+    let finalLat = stateLat;
+    let finalLng = stateLng;
+
+    if (streetAddress || city) {
+      const geo = await geocodeAddress(streetAddress, city, state);
+      if (geo) {
+        finalLat = geo.lat;
+        finalLng = geo.lng;
+      }
+    }
+
+    // ── Upload photo ──────────────────────────────────────────────────────
     let photoUrl = "";
     const file = (req as Request & { file?: Express.Multer.File }).file;
     if (file) {
@@ -109,11 +175,7 @@ export const submitComplaint = async (
 
     const referenceNumber = await generateRefNumber("COMP");
 
-    const coords = district.coordinates ?? {
-      longitude: 76.9905,
-      latitude: 29.6857,
-    };
-
+    // ── Create complaint with geocoded coordinates ────────────────────────
     const complaint = await Complaint.create({
       userId,
       department: department._id,
@@ -130,13 +192,13 @@ export const submitComplaint = async (
       },
       location: {
         type: "Point",
-        coordinates: [coords.longitude, coords.latitude],
+        coordinates: [finalLng, finalLat],
       },
       photoUrl,
       urgency,
       priority: urgency,
       status: "submitted",
-      idempotencyKey, 
+      idempotencyKey,
       statusHistory: [
         {
           status: "submitted",
@@ -271,8 +333,11 @@ export const getHeatmap = async (
           count: 1,
           topCategory: 1,
           urgencyScore: "$urgencySum",
-          lat: 1,
-          lng: 1,
+          // Use district coordinates (accurate state centre) as the
+          // authoritative source for heatmap markers. Fall back to
+          // the complaint's coordinates only if the district has none.
+          lat: { $ifNull: ["$districtInfo.coordinates.latitude", "$lat"] },
+          lng: { $ifNull: ["$districtInfo.coordinates.longitude", "$lng"] },
         },
       },
       { $sort: { count: -1 } },

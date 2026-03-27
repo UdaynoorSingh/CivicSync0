@@ -6,8 +6,8 @@ import "leaflet/dist/leaflet.css";
 import * as api from "../../lib/api";
 import type { HeatmapDistrict } from "../../lib/api";
 
-// Haryana centre coords
-const HARYANA_CENTER: [number, number] = [29.0588, 76.0856];
+// India centre coords
+const INDIA_CENTER: [number, number] = [20.5937, 78.9629];
 
 function circleColor(ratio: number) {
   if (ratio > 0.7) return "#DC2626";
@@ -47,7 +47,7 @@ export default function ComplaintMapPage() {
   // Default centre on first district or Haryana
   const mapCenter: [number, number] = districts[0]
     ? [districts[0].lat, districts[0].lng]
-    : HARYANA_CENTER;
+    : INDIA_CENTER;
 
   return (
     <div className="min-h-screen bg-[#EEF0FB] px-4 py-4">
@@ -114,7 +114,7 @@ export default function ComplaintMapPage() {
         ) : (
           <MapContainer
             center={mapCenter}
-            zoom={7}
+            zoom={5}
             scrollWheelZoom={false}
             style={{ height: "100%", width: "100%" }}
           >
