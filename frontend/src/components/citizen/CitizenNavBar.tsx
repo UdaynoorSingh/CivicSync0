@@ -2,20 +2,22 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Settings, Bell, Lightbulb } from "lucide-react";
 import { useSessionStore } from "../../store/sessionStore";
+import { isCitizenUser } from "../../lib/authRedirect";
 import { useNotificationStore } from "../../store/notificationStore";
 import { useTranslation } from "../../lib/i18n";
 import QuickQueryPopup from "../shared/QuickQueryPopup";
 
 export default function CitizenNavBar() {
-  const { user } = useSessionStore();
+  const { user, isAuthenticated, role } = useSessionStore();
+  const citizen = isCitizenUser(isAuthenticated, role);
   const { unreadCount, fetchNotifications } = useNotificationStore();
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [queryOpen, setQueryOpen] = useState(false);
 
   useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
+    if (citizen) void fetchNotifications();
+  }, [citizen, fetchNotifications]);
 
   return (
     <>
@@ -24,7 +26,7 @@ export default function CitizenNavBar() {
           <div>
             <p className="text-lg text-blue-200 font-medium">{t("welcome")}</p>
             <h1 className="text-xl font-bold font-display leading-tight">
-              {user?.name ?? "Citizen"}
+              {citizen ? (user?.name ?? "Citizen") : t("guestName")}
             </h1>
           </div>
           <div className="flex gap-2 items-center mt-1">
@@ -41,17 +43,20 @@ export default function CitizenNavBar() {
             >
               <Settings size={18} />
             </button>
-            <button
-              onClick={() => navigate("/citizen/notifications")}
-              className="relative w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
-            >
-              <Bell size={18} />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 rounded-full text-[10px] font-bold flex items-center justify-center px-1">
-                  {unreadCount}
-                </span>
-              )}
-            </button>
+            {citizen && (
+              <button
+                type="button"
+                onClick={() => navigate("/citizen/notifications")}
+                className="relative w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+              >
+                <Bell size={18} />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 rounded-full text-[10px] font-bold flex items-center justify-center px-1">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+            )}
           </div>
         </div>
       </header>

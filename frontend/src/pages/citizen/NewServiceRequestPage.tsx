@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { INDIAN_STATES } from "../../lib/indianStates";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import MascotGuide from "../../components/shared/MascotGuide";
 import type { MascotEmotion } from "../../components/shared/MascotGuide";
@@ -12,6 +12,11 @@ import * as api from "../../lib/api";
 import { v4 as uuidv4 } from 'uuid';
 import { addPendingRequest } from '../../lib/db';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
+import {
+  parseDepartmentSlugFromState,
+  slugToServiceType,
+  departmentTitleI18nKey,
+} from "../../lib/departmentContext";
 
 const SERVICES = [
   {
@@ -134,8 +139,39 @@ export default function NewServiceRequestPage() {
 
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
 
+  const departmentSlug = useMemo(
+    () => parseDepartmentSlugFromState(location.state),
+    [location.state],
+  );
 
+  const visibleServices = useMemo(() => {
+    if (!departmentSlug) return SERVICES;
+    const st = slugToServiceType(departmentSlug);
+    if (!st) return SERVICES;
+    return SERVICES.filter((s) => s.type === st);
+  }, [departmentSlug]);
+
+  useEffect(() => {
+    const st = location.state as {
+      prefillServiceType?: string;
+      departmentSlug?: string;
+    } | null;
+    const prefill = st?.prefillServiceType;
+    if (
+      prefill === "electricity" ||
+      prefill === "water" ||
+      prefill === "gas"
+    ) {
+      setServiceType(prefill);
+      const slug = parseDepartmentSlugFromState(st);
+      navigate(location.pathname, {
+        replace: true,
+        state: slug ? { departmentSlug: slug } : undefined,
+      });
+    }
+  }, [location.state, location.pathname, navigate]);
 
   const step2Valid =
     applicantName.trim().length > 0 &&
@@ -295,7 +331,15 @@ export default function NewServiceRequestPage() {
           animate={{ opacity: 1, x: 0 }}
           className="space-y-3"
         >
-          {SERVICES.map(({ type, label, icon, desc }) => (
+          {departmentSlug && (
+            <div className="rounded-xl border border-[#1E3A5F]/20 bg-white px-3 py-2.5 text-sm text-[#1E3A5F]">
+              {t("departmentDataScope")}{" "}
+              <span className="font-bold">
+                {t(departmentTitleI18nKey(departmentSlug))}
+              </span>
+            </div>
+          )}
+          {visibleServices.map(({ type, label, icon, desc }) => (
             <button
               key={type}
               onClick={() => {
