@@ -7,11 +7,15 @@ import {
   markAllAsRead,
   deleteNotification,
   deleteAllNotifications,
+  getPublicNotificationsByDistrict,
 } from "../controllers/notificationController";
 import { authGuard } from "../middleware/authGuard";
 import { roleGuard } from "../middleware/roleGuard";
 
 const router = Router();
+
+// Public routes (no authentication required)
+router.get("/public/:districtId", getPublicNotificationsByDistrict);
 
 router.use(authGuard);
 

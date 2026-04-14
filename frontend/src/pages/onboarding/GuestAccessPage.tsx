@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { FileText, CreditCard, PlusCircle, Search, MapPin } from "lucide-react";
 import { useTranslation } from "../../lib/i18n";
 import MascotGuide from "../../components/shared/MascotGuide";
+import GuestNotifications from "../../components/guest/GuestNotifications";
 
 const services = [
   {
@@ -103,6 +104,8 @@ export default function GuestAccessPage() {
           <MapPin size={20} />
           {t("viewComplaintMap")}
         </motion.button>
+
+        <GuestNotifications />
       </div>
     </div>
   );

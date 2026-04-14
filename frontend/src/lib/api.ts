@@ -811,7 +811,9 @@ export interface FullCitizenUser {
 }
 
 export const getDistricts = () =>
-  request<{ success: boolean; districts: DistrictOption[] }>("/auth/districts");
+  request<{ success: boolean; message?: string; districts: DistrictOption[] }>(
+    "/auth/districts",
+  );
 
 export const updateProfile = (payload: UpdateProfilePayload) =>
   request<{ success: boolean; message: string; user: FullCitizenUser }>(
@@ -869,16 +871,14 @@ export const pushNotification = (payload: {
   });
 
 export const markNotificationAsRead = (id: string) =>
-  request<{ success: boolean; message: string }>(
-    `/notifications/${id}/read`,
-    { method: "PUT" },
-  );
+  request<{ success: boolean; message: string }>(`/notifications/${id}/read`, {
+    method: "PUT",
+  });
 
 export const markAllNotificationsAsRead = () =>
-  request<{ success: boolean; message: string }>(
-    "/notifications/read-all",
-    { method: "PUT" },
-  );
+  request<{ success: boolean; message: string }>("/notifications/read-all", {
+    method: "PUT",
+  });
 
 export const deleteNotification = (id: string) =>
   request<{ success: boolean; message: string }>(`/notifications/${id}`, {
@@ -889,3 +889,14 @@ export const deleteAllNotifications = () =>
   request<{ success: boolean; message: string }>("/notifications/delete-all", {
     method: "DELETE",
   });
+
+/**
+ * Public endpoint for guest users to fetch district-wide notifications
+ * No authentication required
+ */
+export const getPublicNotificationsByDistrict = (districtId: string) =>
+  request<{
+    success: boolean;
+    message?: string;
+    notifications: ApiNotification[];
+  }>(`/notifications/public/${districtId}`);
