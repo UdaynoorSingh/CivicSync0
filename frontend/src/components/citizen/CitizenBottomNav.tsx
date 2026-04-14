@@ -7,8 +7,10 @@ import {
   HeadphonesIcon,
 } from "lucide-react";
 import { useTranslation } from "../../lib/i18n";
+import { useSessionStore } from "../../store/sessionStore";
+import { isCitizenUser } from "../../lib/authRedirect";
 
-const navItems = [
+const fullNavItems = [
   { to: "/citizen", icon: Home, labelKey: "welcome", end: true },
   { to: "/citizen/bills", icon: CreditCard, labelKey: "payBills", end: false },
   {
@@ -26,8 +28,22 @@ const navItems = [
   },
 ];
 
+const guestNavItems = [
+  { to: "/citizen", icon: Home, labelKey: "welcome", end: true },
+  {
+    to: "/citizen/help",
+    icon: HeadphonesIcon,
+    labelKey: "helpSupport",
+    end: false,
+  },
+];
+
 export default function CitizenBottomNav() {
   const { t } = useTranslation();
+  const { isAuthenticated, role } = useSessionStore();
+  const citizen = isCitizenUser(isAuthenticated, role);
+  const navItems = citizen ? fullNavItems : guestNavItems;
+
   return (
     <nav className="fixed bottom-0 inset-x-0 z-30 bg-white border-t border-gray-200 flex">
       {navItems.map(({ to, icon: Icon, labelKey, end }) => (

@@ -18,6 +18,7 @@ import {
   Languages,
 } from "lucide-react";
 import { useSessionStore } from "../../store/sessionStore";
+import { isCitizenUser } from "../../lib/authRedirect";
 import { useTranslation } from "../../lib/i18n";
 import { INDIAN_STATES } from "../../lib/indianStates";
 import * as api from "../../lib/api";
@@ -185,7 +186,8 @@ function AddressView({ address }: { address?: UserAddress }) {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function ProfilePage() {
-  const { user, logout, updateUser } = useSessionStore();
+  const { user, logout, updateUser, isAuthenticated, role } = useSessionStore();
+  const citizen = isCitizenUser(isAuthenticated, role);
   const { t } = useTranslation();
   const navigate = useNavigate();
 
@@ -287,18 +289,59 @@ export default function ProfilePage() {
     />
   );
 
+  if (!citizen) {
+    return (
+      <div className="min-h-screen bg-[#EEF0FB] px-4 py-4 pb-8">
+        <div className="flex items-center gap-3 mb-8">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="text-gray-600"
+          >
+            <ArrowLeft size={22} />
+          </button>
+          <h1 className="text-xl font-bold text-gray-800">{t("settingsPage")}</h1>
+        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white rounded-2xl shadow-sm p-6 text-center space-y-4"
+        >
+          <div className="w-16 h-16 rounded-full bg-[#1E3A5F]/10 flex items-center justify-center mx-auto">
+            <User size={32} className="text-[#1E3A5F]" />
+          </div>
+          <p className="text-sm text-gray-600 leading-relaxed">
+            {t("loginPromptShort")}
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate("/login")}
+            className="w-full py-3.5 rounded-xl bg-[#1E3A5F] text-white font-bold text-base shadow-md"
+          >
+            {t("loginBtn")}
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#EEF0FB] px-4 py-4 pb-8">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="text-gray-600">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="text-gray-600"
+          >
             <ArrowLeft size={22} />
           </button>
           <h1 className="text-xl font-bold text-gray-800">{t("myProfile")}</h1>
         </div>
         {!editing && (
           <button
+            type="button"
             onClick={enterEdit}
             className="flex items-center gap-1.5 text-xs font-semibold text-[#1E3A5F] bg-white px-3 py-2 rounded-xl shadow-sm"
           >

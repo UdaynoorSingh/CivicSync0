@@ -589,6 +589,14 @@ export interface CitizenPayment {
   createdAt: string;
   razorpayOrderId: string;
   razorpayPaymentId?: string;
+  /** Present when `getMyPayments` populates the related bill (department-scoped filtering). */
+  billId?: string | CitizenBill;
+  /** Present when populated — used with department filters on Track / payments. */
+  serviceRequestId?:
+    | string
+    | Pick<CitizenServiceRequest, "referenceNumber" | "serviceType" | "status"> & {
+        department?: { name: string; code: string };
+      };
 }
 
 export const getRazorpayKey = () =>
@@ -628,6 +636,15 @@ export const getMyPayments = () =>
 
 export const getPaymentById = (id: string) =>
   request<{ success: boolean; payment: CitizenPayment }>(`/payments/${id}`);
+
+export const sendPaymentReceiptByEmail = (paymentId: string, email: string) =>
+  request<{ success: boolean; message: string }>(
+    `/payments/${paymentId}/receipt/email`,
+    {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    },
+  );
 
 export const downloadPaymentReceipt = async (
   paymentId: string,

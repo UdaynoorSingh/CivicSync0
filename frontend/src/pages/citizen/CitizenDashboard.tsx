@@ -7,14 +7,15 @@ import {
   Flame,
   Trash2,
   FileText,
-  CreditCard,
   PlusCircle,
-  Search,
   MapPin,
   Receipt,
   Clock,
+  Ellipsis,
 } from "lucide-react";
 import { useTranslation } from "../../lib/i18n";
+import { useSessionStore } from "../../store/sessionStore";
+import { isCitizenUser } from "../../lib/authRedirect";
 import MascotGuide from "../../components/shared/MascotGuide";
 import {
   getMyBills,
@@ -24,7 +25,7 @@ import {
   type CitizenBill,
 } from "../../lib/api";
 
-type BillCategory = "electricity" | "water" | "gas" | "waste";
+type BillCategory = "electricity" | "water" | "gas" | "waste" | "sanitation";
 
 const billConfig: Record<
   BillCategory,
@@ -37,40 +38,56 @@ const billConfig: Record<
   water: { icon: Droplets, color: "text-blue-300" },
   gas: { icon: Flame, color: "text-orange-400" },
   waste: { icon: Trash2, color: "text-green-400" },
+  sanitation: { icon: Trash2, color: "text-emerald-400" },
 };
 
-const services = [
+const departmentCards: {
+  slug: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  color: string;
+  border: string;
+  bg: string;
+  labelKey: string;
+}[] = [
   {
-    key: "registerComplaint",
-    icon: FileText,
-    color: "text-red-500",
-    border: "border-red-200",
-    bg: "bg-red-50",
-    to: "/citizen/complaint/new",
+    slug: "electricity",
+    icon: Zap,
+    color: "text-yellow-500",
+    border: "border-yellow-200",
+    bg: "bg-yellow-50",
+    labelKey: "electricity",
   },
   {
-    key: "payBills",
-    icon: CreditCard,
+    slug: "gas",
+    icon: Flame,
+    color: "text-orange-500",
+    border: "border-orange-200",
+    bg: "bg-orange-50",
+    labelKey: "gasSupply",
+  },
+  {
+    slug: "water",
+    icon: Droplets,
     color: "text-blue-600",
     border: "border-blue-200",
     bg: "bg-blue-50",
-    to: "/citizen/bills",
+    labelKey: "waterSupply",
   },
   {
-    key: "newServiceRequest",
-    icon: PlusCircle,
-    color: "text-purple-600",
-    border: "border-purple-200",
-    bg: "bg-purple-50",
-    to: "/citizen/service/new",
-  },
-  {
-    key: "trackStatus",
-    icon: Search,
+    slug: "sanitation",
+    icon: Trash2,
     color: "text-green-600",
     border: "border-green-200",
     bg: "bg-green-50",
-    to: "/citizen/track",
+    labelKey: "sanitationDept",
+  },
+  {
+    slug: "others",
+    icon: Ellipsis,
+    color: "text-gray-600",
+    border: "border-gray-200",
+    bg: "bg-gray-50",
+    labelKey: "othersDept",
   },
 ];
 
@@ -157,18 +174,25 @@ const mapDepartmentToCategory = (bill: CitizenBill): BillCategory => {
   if (code === "ELEC") return "electricity";
   if (code === "WATER") return "water";
   if (code === "GAS") return "gas";
+  if (code === "SANITATION") return "sanitation";
   return "waste";
 };
 
 export default function CitizenDashboard() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { isAuthenticated, role } = useSessionStore();
+  const isCitizen = isCitizenUser(isAuthenticated, role);
   const [bills, setBills] = useState<DashboardBill[]>([]);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [loadingActivity, setLoadingActivity] = useState(true);
 
   // Load pending bills for the top strip
   useEffect(() => {
+    if (!isCitizen) {
+      setBills([]);
+      return;
+    }
     void (async () => {
       try {
         const res = await getMyBills();
@@ -185,10 +209,15 @@ export default function CitizenDashboard() {
         setBills([]);
       }
     })();
-  }, []);
+  }, [isCitizen]);
 
   // Load real recent activity in parallel
   useEffect(() => {
+    if (!isCitizen) {
+      setActivity([]);
+      setLoadingActivity(false);
+      return;
+    }
     void (async () => {
       setLoadingActivity(true);
       try {
@@ -276,13 +305,13 @@ export default function CitizenDashboard() {
         setLoadingActivity(false);
       }
     })();
-  }, []);
+  }, [isCitizen]);
 
   const visibleBills = useMemo(() => bills, [bills]);
 
   return (
     <div className="pb-4">
-      {visibleBills.length > 0 && <div className="bg-[#1E3A5F] px-4 pb-5 pt-2">
+      {isCitizen && visibleBills.length > 0 && <div className="bg-[#1E3A5F] px-4 pb-5 pt-2">
         <div className="grid grid-cols-4 gap-2 mt-1">
           {visibleBills.map((bill) => {
             const { icon: Icon, color } = billConfig[bill.category];
@@ -310,7 +339,7 @@ export default function CitizenDashboard() {
         <section>
           <MascotGuide
             emotion="happy"
-            message={t("mascotWelcomeBack")}
+            message={isCitizen ? t("mascotWelcomeBack") : t("mascotWelcomeGuest")}
             size="sm"
             className="mb-3"
           />
@@ -318,40 +347,49 @@ export default function CitizenDashboard() {
             {t("civicServices")}
           </h2>
           <div className="grid grid-cols-2 gap-3">
-            {services.map(({ key, icon: Icon, color, border, bg, to }, i) => (
-              <motion.button
-                key={key}
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.07 }}
-                whileTap={{ scale: 0.96 }}
-                onClick={() => navigate(to)}
-                className={`bg-white border-2 ${border} rounded-2xl p-4 flex flex-col items-center gap-2 shadow-sm hover:shadow-md transition-shadow`}
-              >
-                <div
-                  className={`w-12 h-12 rounded-xl ${bg} flex items-center justify-center`}
+            {departmentCards.map(
+              ({ slug, icon: Icon, color, border, bg, labelKey }, i) => (
+                <motion.button
+                  key={slug}
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.06 }}
+                  whileTap={{ scale: 0.96 }}
+                  onClick={() => navigate(`/citizen/department/${slug}`)}
+                  className={`bg-white border-2 ${border} rounded-2xl p-4 flex flex-col items-center gap-2 shadow-sm hover:shadow-md transition-shadow ${
+                    i === 4
+                      ? "col-span-2 max-w-[calc(50%-6px)] mx-auto w-full"
+                      : ""
+                  }`}
                 >
-                  <Icon size={26} className={color} />
-                </div>
-                <span
-                  className={`text-sm font-bold ${color} text-center leading-tight`}
-                >
-                  {t(key)}
-                </span>
-              </motion.button>
-            ))}
+                  <div
+                    className={`w-12 h-12 rounded-xl ${bg} flex items-center justify-center`}
+                  >
+                    <Icon size={26} className={color} />
+                  </div>
+                  <span
+                    className={`text-sm font-bold ${color} text-center leading-tight`}
+                  >
+                    {t(labelKey)}
+                  </span>
+                </motion.button>
+              ),
+            )}
           </div>
         </section>
 
-        <motion.button
-          whileTap={{ scale: 0.98 }}
-          onClick={() => navigate("/citizen/map")}
-          className="w-full bg-[#EA580C] text-white rounded-2xl py-3.5 flex items-center justify-center gap-2.5 font-bold text-base shadow-md shadow-orange-200 hover:bg-orange-700 transition-colors"
-        >
-          <MapPin size={20} />
-          {t("viewComplaintMap")}
-        </motion.button>
+        {isCitizen && (
+          <motion.button
+            whileTap={{ scale: 0.98 }}
+            onClick={() => navigate("/citizen/map")}
+            className="w-full bg-[#EA580C] text-white rounded-2xl py-3.5 flex items-center justify-center gap-2.5 font-bold text-base shadow-md shadow-orange-200 hover:bg-orange-700 transition-colors"
+          >
+            <MapPin size={20} />
+            {t("viewComplaintMap")}
+          </motion.button>
+        )}
 
+        {isCitizen && (
         <section>
           <h2 className="text-lg font-bold text-gray-800 mb-3">
             {t("recentActivity")}
@@ -434,6 +472,7 @@ export default function CitizenDashboard() {
             </button>
           )}
         </section>
+        )}
       </div>
     </div>
   );
