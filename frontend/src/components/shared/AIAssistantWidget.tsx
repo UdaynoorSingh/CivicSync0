@@ -264,7 +264,7 @@ export default function AIAssistantWidget() {
       <motion.button
         whileTap={{ scale: 0.92 }}
         onClick={handleOpen}
-        className="fixed bottom-16 right-4 z-40 w-16 h-16 rounded-full bg-[#1E3A5F] shadow-lg flex items-center justify-center text-white"
+        className="fixed bottom-16 right-4 z-1100 w-16 h-16 rounded-full bg-[#1E3A5F] shadow-lg flex items-center justify-center text-white"
         title="AI Assistant"
       >
         <img src="/mascot/split_1_1.png" alt="Chatbot Mascot" className="w-12 h-12 object-contain drop-shadow" draggable={false} />
@@ -279,7 +279,7 @@ export default function AIAssistantWidget() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 40, scale: 0.95 }}
             transition={{ duration: 0.22 }}
-            className="fixed bottom-24 right-4 z-50 w-80 bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+            className="fixed bottom-24 right-4 z-1100 w-80 bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col"
             style={{ maxHeight: "70vh", height: "500px" }}
           >
             {/* Header */}

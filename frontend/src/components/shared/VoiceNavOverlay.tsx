@@ -23,7 +23,7 @@ export default function VoiceNavOverlay() {
       <motion.button
         whileTap={{ scale: 0.9 }}
         onClick={toggle}
-        className={`fixed bottom-16 left-4 z-40 w-16 h-16 rounded-full shadow-lg flex items-end justify-center pt-2 transition-colors duration-300 ${
+        className={`fixed bottom-16 left-4 z-1100 w-16 h-16 rounded-full shadow-lg flex items-end justify-center pt-2 transition-colors duration-300 ${
           isEnabled
             ? "bg-emerald-600 text-white"
             : "bg-white text-gray-600 border border-gray-200"
@@ -41,7 +41,7 @@ export default function VoiceNavOverlay() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 30 }}
             transition={{ duration: 0.25 }}
-            className="fixed bottom-32 left-4 z-50 w-72 rounded-2xl shadow-2xl overflow-hidden bg-white border border-gray-100"
+            className="fixed bottom-32 left-4 z-1100 w-72 rounded-2xl shadow-2xl overflow-hidden bg-white border border-gray-100"
           >
             {/* Header */}
             <div className="bg-gradient-to-r from-[#1E3A5F] to-[#2a5280] text-white px-4 py-2.5 flex items-center gap-2">
@@ -143,7 +143,7 @@ export default function VoiceNavOverlay() {
 
       {/* ── Disabled indicator ────────────────────────── */}
       {!isEnabled && (
-        <div className="fixed bottom-32 left-4 z-40">
+        <div className="fixed bottom-32 left-4 z-1100">
           <div className="flex items-center gap-1.5 bg-gray-100 text-gray-500 rounded-full px-3 py-1.5 text-xs shadow-sm">
             <MicOff size={12} />
             Voice Nav Off
