@@ -26,6 +26,7 @@ dist-ssr
 # reference files
 Project_overview.md
 features.txt
+Implementation_Plan.md
 
 # backend secrets & build output
 backend/.env

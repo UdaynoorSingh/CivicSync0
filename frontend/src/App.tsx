@@ -5,6 +5,7 @@ import { useSessionStore } from "./store/sessionStore";
 import KioskLayout from "./layouts/KioskLayout";
 import AdminLayout from "./layouts/AdminLayout";
 import HeadAdminLayout from "./layouts/HeadAdminLayout";
+import GuestLayout from "./layouts/GuestLayout";
 
 import SplashScreen from "./pages/onboarding/SplashScreen";
 import LanguageSelectionPage from "./pages/onboarding/LanguageSelectionPage";
@@ -39,6 +40,7 @@ import HeadAdminDashboardPage from "./pages/admin/HeadAdminDashboardPage";
 import HeadAdminFeedbackPage from "./pages/admin/HeadAdminFeedbackPage";
 
 import NotFoundPage from "./pages/NotFoundPage";
+import GuestMap from "./components/guest/GuestMap";
 
 function CitizenRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, sessionReady, role } = useSessionStore();
@@ -85,7 +87,12 @@ export default function App() {
         />
         <Route path="/otp" element={<OTPPage />} />
         <Route path="/head-admin/otp" element={<HeadAdminOTPPage />} />
-        <Route path="/guest" element={<GuestAccessPage />} />
+
+        <Route element={<GuestLayout />}>
+          <Route path="/guest" element={<GuestAccessPage />} />
+          <Route path="/guest/help" element={<HelpSupportPage />} />
+          <Route path="/guest/map" element={<GuestMap />} />
+        </Route>
 
         <Route
           element={

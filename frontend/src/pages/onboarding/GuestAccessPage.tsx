@@ -1,64 +1,109 @@
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { UserX, HeadphonesIcon } from "lucide-react";
+import { FileText, CreditCard, PlusCircle, Search, MapPin } from "lucide-react";
 import { useTranslation } from "../../lib/i18n";
+import MascotGuide from "../../components/shared/MascotGuide";
+
+const services = [
+  {
+    key: "registerComplaint",
+    icon: FileText,
+    color: "text-red-500",
+    border: "border-red-200",
+    bg: "bg-red-50",
+    redirectTo: "/citizen/complaint/new",
+  },
+  {
+    key: "payBills",
+    icon: CreditCard,
+    color: "text-blue-600",
+    border: "border-blue-200",
+    bg: "bg-blue-50",
+    redirectTo: "/citizen/bills",
+  },
+  {
+    key: "newServiceRequest",
+    icon: PlusCircle,
+    color: "text-purple-600",
+    border: "border-purple-200",
+    bg: "bg-purple-50",
+    redirectTo: "/citizen/service/new",
+  },
+  {
+    key: "trackStatus",
+    icon: Search,
+    color: "text-green-600",
+    border: "border-green-200",
+    bg: "bg-green-50",
+    redirectTo: "/citizen/track",
+  },
+];
 
 export default function GuestAccessPage() {
-  const navigate = useNavigate();
   const { t } = useTranslation();
+  const navigate = useNavigate();
+
+  const handleServiceClick = (redirectTo: string) => {
+    navigate("/login");
+  };
+
+  const handleMapClick = () => {
+    navigate("/guest/map");
+  };
+
+  const visibleServices = useMemo(() => services, []);
 
   return (
-    <div className="min-h-screen bg-[#EEF0FB] flex flex-col items-center justify-center px-6 py-12">
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        className="w-full max-w-sm"
-      >
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center mx-auto mb-4">
-            <UserX size={28} className="text-orange-600" />
+    <div className="pb-4">
+      <div className="px-4 pt-4 space-y-5">
+        <section>
+          <MascotGuide
+            emotion="happy"
+            message={t("mascotWelcomeGuest")}
+            size="sm"
+            className="mb-3"
+          />
+          <h2 className="text-lg font-bold text-gray-800 mb-3">
+            {t("civicServices")}
+          </h2>
+          <div className="grid grid-cols-2 gap-3">
+            {visibleServices.map(
+              ({ key, icon: Icon, color, border, bg, redirectTo }, i) => (
+                <motion.button
+                  key={key}
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.07 }}
+                  whileTap={{ scale: 0.96 }}
+                  onClick={() => handleServiceClick(redirectTo)}
+                  className={`bg-white border-2 ${border} rounded-2xl p-4 flex flex-col items-center gap-2 shadow-sm hover:shadow-md transition-shadow`}
+                >
+                  <div
+                    className={`w-12 h-12 rounded-xl ${bg} flex items-center justify-center`}
+                  >
+                    <Icon size={26} className={color} />
+                  </div>
+                  <span
+                    className={`text-sm font-bold ${color} text-center leading-tight`}
+                  >
+                    {t(key)}
+                  </span>
+                </motion.button>
+              ),
+            )}
           </div>
-          <h1 className="text-2xl font-bold text-gray-800 font-display mb-2">
-            {t("guestMode")}
-          </h1>
-          <p className="text-gray-500 text-sm leading-relaxed">
-            {t("guestDesc")}
-          </p>
-        </div>
+        </section>
 
-        <div className="space-y-3 mb-8">
-          {/* <button
-            onClick={() => navigate("/citizen/track")}
-            className="w-full bg-white rounded-2xl p-4 flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow"
-          >
-            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
-              <Search size={20} className="text-blue-600" />
-            </div>
-            <span className="font-semibold text-gray-800">
-              {t("trackStatusGuest")}
-            </span>
-          </button> */}
-
-          <button
-            onClick={() => navigate("/citizen/help")}
-            className="w-full bg-white rounded-2xl p-4 flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow"
-          >
-            <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center">
-              <HeadphonesIcon size={20} className="text-green-600" />
-            </div>
-            <span className="font-semibold text-gray-800">
-              {t("helpGuest")}
-            </span>
-          </button>
-        </div>
-
-        <button
-          onClick={() => navigate("/login")}
-          className="w-full py-3.5 rounded-xl bg-[#1E3A5F] text-white font-bold text-base btn-touch"
+        <motion.button
+          whileTap={{ scale: 0.98 }}
+          onClick={handleMapClick}
+          className="w-full bg-[#EA580C] text-white rounded-2xl py-3.5 flex items-center justify-center gap-2.5 font-bold text-base shadow-md shadow-orange-200 hover:bg-orange-700 transition-colors"
         >
-          Login with Mobile Number
-        </button>
-      </motion.div>
+          <MapPin size={20} />
+          {t("viewComplaintMap")}
+        </motion.button>
+      </div>
     </div>
   );
 }
