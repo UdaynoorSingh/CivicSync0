@@ -159,7 +159,7 @@ const GuestNotifications = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#EEF0FB] pb-20">
+    <div className="bg-[#EEF0FB] pb-4">
       {/* Header */}
       <header className="bg-[#1E3A5F] text-white px-4 py-5 shadow-md rounded-2xl">
         <div className="flex items-center gap-3">

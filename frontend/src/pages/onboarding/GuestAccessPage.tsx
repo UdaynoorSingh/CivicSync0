@@ -2,9 +2,9 @@ import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FileText, CreditCard, PlusCircle, Search, MapPin } from "lucide-react";
-import { useTranslation } from "../../lib/i18n";
-import MascotGuide from "../../components/shared/MascotGuide";
-import GuestNotifications from "../../components/guest/GuestNotifications";
+import { useTranslation } from "@/lib/i18n"
+import MascotGuide from "@/components/shared/MascotGuide";
+import GuestNotifications from "@/components/guest/GuestNotifications";
 
 const services = [
   {
@@ -13,7 +13,6 @@ const services = [
     color: "text-red-500",
     border: "border-red-200",
     bg: "bg-red-50",
-    redirectTo: "/citizen/complaint/new",
   },
   {
     key: "payBills",
@@ -21,7 +20,6 @@ const services = [
     color: "text-blue-600",
     border: "border-blue-200",
     bg: "bg-blue-50",
-    redirectTo: "/citizen/bills",
   },
   {
     key: "newServiceRequest",
@@ -37,7 +35,6 @@ const services = [
     color: "text-green-600",
     border: "border-green-200",
     bg: "bg-green-50",
-    redirectTo: "/citizen/track",
   },
 ];
 
@@ -45,7 +42,7 @@ export default function GuestAccessPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
-  const handleServiceClick = (redirectTo: string) => {
+  const handleServiceClick = () => {
     navigate("/login");
   };
 
@@ -70,14 +67,14 @@ export default function GuestAccessPage() {
           </h2>
           <div className="grid grid-cols-2 gap-3">
             {visibleServices.map(
-              ({ key, icon: Icon, color, border, bg, redirectTo }, i) => (
+              ({ key, icon: Icon, color, border, bg }, i) => (
                 <motion.button
                   key={key}
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.07 }}
                   whileTap={{ scale: 0.96 }}
-                  onClick={() => handleServiceClick(redirectTo)}
+                  onClick={() => handleServiceClick()}
                   className={`bg-white border-2 ${border} rounded-2xl p-4 flex flex-col items-center gap-2 shadow-sm hover:shadow-md transition-shadow`}
                 >
                   <div
