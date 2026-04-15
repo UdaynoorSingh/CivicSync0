@@ -439,6 +439,7 @@ export interface ServiceRequestPayload {
   pincode: string;
   districtName: string;
   additionalNotes?: string;
+  requestedLoadIncrease?: number;
   idProof?: File | null;
   addressProof?: File | null;
 }
@@ -456,6 +457,11 @@ export const submitServiceRequest = (payload: ServiceRequestPayload) => {
   fd.append("districtName", payload.districtName);
   if (payload.additionalNotes)
     fd.append("additionalNotes", payload.additionalNotes);
+  if (payload.requestedLoadIncrease !== undefined)
+    fd.append(
+      "requestedLoadIncrease",
+      payload.requestedLoadIncrease.toString(),
+    );
   if (payload.idProof) fd.append("id_proof", payload.idProof);
   if (payload.addressProof) fd.append("address_proof", payload.addressProof);
 

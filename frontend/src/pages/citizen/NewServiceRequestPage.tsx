@@ -9,9 +9,9 @@ import { useTranslation } from "../../lib/i18n";
 import { useSessionStore } from "../../store/sessionStore";
 import * as api from "../../lib/api";
 
-import { v4 as uuidv4 } from 'uuid';
-import { addPendingRequest } from '../../lib/db';
-import { useOnlineStatus } from '../../hooks/useOnlineStatus';
+import { v4 as uuidv4 } from "uuid";
+import { addPendingRequest } from "../../lib/db";
+import { useOnlineStatus } from "../../hooks/useOnlineStatus";
 
 const SERVICES = [
   {
@@ -37,21 +37,12 @@ const SERVICES = [
 const REQUEST_TYPES: Record<string, { value: string; label: string }[]> = {
   electricity: [
     { value: "new_connection", label: "New Connection" },
-    { value: "reconnection", label: "Reconnection" },
     { value: "meter_replacement", label: "Meter Replacement" },
-    { value: "load_change", label: "Load Change" },
+    { value: "load_increment", label: "Load Increment" },
   ],
-  water: [
-    { value: "new_connection", label: "New Connection" },
-    { value: "reconnection", label: "Reconnection" },
-  ],
-  gas: [
-    { value: "new_connection", label: "New Connection" },
-    { value: "reconnection", label: "Reconnection" },
-  ],
+  water: [{ value: "new_connection", label: "New Connection" }],
+  gas: [{ value: "new_connection", label: "New Connection" }],
 };
-
-
 
 function FileZone({
   label,
@@ -125,6 +116,8 @@ export default function NewServiceRequestPage() {
   const [pincode, setPincode] = useState(() => user?.address?.pincode ?? "");
   const [additionalNotes, setAdditionalNotes] = useState("");
 
+  const [requestedLoadIncrease, setRequestedLoadIncrease] = useState("");
+
   const [idProof, setIdProof] = useState<File | null>(null);
   const [addressProof, setAddressProof] = useState<File | null>(null);
 
@@ -135,8 +128,6 @@ export default function NewServiceRequestPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
-
-
   const step2Valid =
     applicantName.trim().length > 0 &&
     contactPhone.trim().length === 10 &&
@@ -144,7 +135,12 @@ export default function NewServiceRequestPage() {
     state !== "" &&
     district.trim().length > 0 &&
     pincode.length === 6 &&
-    /^\d{6}$/.test(pincode);
+    /^\d{6}$/.test(pincode) &&
+    (serviceType !== "electricity" ||
+      requestType !== "load_increment" ||
+      (requestedLoadIncrease.trim() !== "" &&
+        parseFloat(requestedLoadIncrease) >= 0.5 &&
+        parseFloat(requestedLoadIncrease) <= 50));
 
   const handleSubmit = async () => {
     setLoading(true);
@@ -152,11 +148,11 @@ export default function NewServiceRequestPage() {
     try {
       if (!isOnline) {
         const idempotencyKey = uuidv4();
-        
+
         await addPendingRequest({
           id: idempotencyKey,
-          url: `${import.meta.env.VITE_API_URL || '/api'}/service-requests`,
-          method: 'POST',
+          url: `${import.meta.env.VITE_API_URL || "/api"}/service-requests`,
+          method: "POST",
           body: {
             serviceType,
             requestType,
@@ -168,14 +164,18 @@ export default function NewServiceRequestPage() {
             pincode,
             districtName: district,
             additionalNotes: additionalNotes || undefined,
+            requestedLoadIncrease:
+              serviceType === "electricity" && requestType === "load_increment"
+                ? parseFloat(requestedLoadIncrease)
+                : undefined,
             id_proof: idProof,
-            address_proof: addressProof
+            address_proof: addressProof,
           },
           timestamp: Date.now(),
-          type: 'service'
+          type: "service",
         });
 
-        navigate("/citizen/service/confirm", { 
+        navigate("/citizen/service/confirm", {
           state: {
             id: `offline-${idempotencyKey}`,
             referenceNumber: `OFFLINE-QUEUED-${idempotencyKey.substring(0, 6).toUpperCase()}`,
@@ -184,8 +184,8 @@ export default function NewServiceRequestPage() {
             requestType: requestType,
             department: "Pending Sync",
             district: district,
-            createdAt: new Date().toISOString()
-          } 
+            createdAt: new Date().toISOString(),
+          },
         });
         return;
       }
@@ -201,6 +201,10 @@ export default function NewServiceRequestPage() {
         pincode,
         districtName: district,
         additionalNotes: additionalNotes || undefined,
+        requestedLoadIncrease:
+          serviceType === "electricity" && requestType === "load_increment"
+            ? parseFloat(requestedLoadIncrease)
+            : undefined,
         idProof,
         addressProof,
       });
@@ -301,6 +305,7 @@ export default function NewServiceRequestPage() {
               onClick={() => {
                 setServiceType(type);
                 setRequestType("new_connection");
+                setRequestedLoadIncrease("");
               }}
               className={`w-full bg-white rounded-2xl p-4 flex items-center gap-4 shadow-sm border-2 transition-all ${serviceType === type ? "border-[#1E3A5F] bg-blue-50" : "border-transparent hover:border-gray-200"}`}
             >
@@ -319,7 +324,10 @@ export default function NewServiceRequestPage() {
               </label>
               <select
                 value={requestType}
-                onChange={(e) => setRequestType(e.target.value)}
+                onChange={(e) => {
+                  setRequestType(e.target.value);
+                  setRequestedLoadIncrease("");
+                }}
                 className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-200"
               >
                 {(REQUEST_TYPES[serviceType] ?? []).map(
@@ -451,6 +459,28 @@ export default function NewServiceRequestPage() {
             />
           </div>
 
+          {serviceType === "electricity" &&
+            requestType === "load_increment" && (
+              <div>
+                <label className="text-sm font-medium text-gray-600 block mb-1.5">
+                  Requested Load Increase (kW) *
+                </label>
+                <input
+                  type="number"
+                  value={requestedLoadIncrease}
+                  onChange={(e) => setRequestedLoadIncrease(e.target.value)}
+                  placeholder="e.g. 2.5, 5, 10"
+                  step="0.5"
+                  min="0.5"
+                  max="50"
+                  className={`w-full border rounded-xl px-4 py-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-200 ${touched2 && serviceType === "electricity" && requestType === "load_increment" && (requestedLoadIncrease.trim() === "" || parseFloat(requestedLoadIncrease) < 0.5 || parseFloat(requestedLoadIncrease) > 50) ? "border-red-300" : "border-gray-200"}`}
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Must be between 0.5 and 50 kW
+                </p>
+              </div>
+            )}
+
           {touched2 && !step2Valid && (
             <p className="text-xs text-red-500">
               Please fill all required fields with valid data.
@@ -516,6 +546,10 @@ export default function NewServiceRequestPage() {
                 "Address",
                 `${streetAddress}, ${district}, ${state} - ${pincode}`,
               ],
+              ...(serviceType === "electricity" &&
+              requestType === "load_increment"
+                ? [["Requested Load Increase", `${requestedLoadIncrease} kW`]]
+                : []),
               ["ID Proof", idProof?.name ?? "Not uploaded"],
               ["Addr. Proof", addressProof?.name ?? "Not uploaded"],
             ].map(([label, val]) => (

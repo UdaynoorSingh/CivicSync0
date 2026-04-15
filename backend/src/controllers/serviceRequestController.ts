@@ -20,7 +20,7 @@ export const submitServiceRequest = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const idempotencyKey = req.headers['x-idempotency-key'] as string;
+    const idempotencyKey = req.headers["x-idempotency-key"] as string;
 
     if (idempotencyKey) {
       const existingReq = await ServiceRequest.findOne({ idempotencyKey });
@@ -35,6 +35,9 @@ export const submitServiceRequest = async (
             serviceType: existingReq.serviceType,
             requestType: existingReq.requestType,
             createdAt: existingReq.createdAt,
+            ...(existingReq.requestedLoadIncrease && {
+              requestedLoadIncrease: existingReq.requestedLoadIncrease,
+            }),
           },
         });
         return;
@@ -52,6 +55,7 @@ export const submitServiceRequest = async (
       pincode = "000000",
       districtName,
       additionalNotes,
+      requestedLoadIncrease,
     } = req.body as {
       serviceType?: string;
       requestType?: string;
@@ -63,6 +67,7 @@ export const submitServiceRequest = async (
       pincode?: string;
       districtName?: string;
       additionalNotes?: string;
+      requestedLoadIncrease?: number;
     };
 
     if (
@@ -78,6 +83,26 @@ export const submitServiceRequest = async (
           "serviceType, applicantName, contactPhone, city, and districtName are required.",
       });
       return;
+    }
+
+    // Validate requestedLoadIncrease for electricity load_increment requests
+    if (serviceType === "electricity" && requestType === "load_increment") {
+      if (!requestedLoadIncrease) {
+        res.status(400).json({
+          success: false,
+          message:
+            "requestedLoadIncrease is required for load increment requests.",
+        });
+        return;
+      }
+      const loadValue = parseFloat(String(requestedLoadIncrease));
+      if (isNaN(loadValue) || loadValue < 0.5 || loadValue > 50) {
+        res.status(400).json({
+          success: false,
+          message: "requestedLoadIncrease must be between 0.5 and 50 kW.",
+        });
+        return;
+      }
     }
 
     const deptCode = SERVICE_CODE[serviceType];
@@ -122,7 +147,9 @@ export const submitServiceRequest = async (
           files?: { [fieldname: string]: Express.Multer.File[] };
         }
       ).files ?? {};
-    const uploadedFiles = Object.values(filesDict).flat() as Express.Multer.File[];
+    const uploadedFiles = Object.values(
+      filesDict,
+    ).flat() as Express.Multer.File[];
 
     const documents = await Promise.all(
       uploadedFiles.map(async (f) => {
@@ -159,9 +186,13 @@ export const submitServiceRequest = async (
       },
       documents,
       additionalNotes,
+      requestedLoadIncrease:
+        requestedLoadIncrease !== undefined
+          ? parseFloat(String(requestedLoadIncrease))
+          : undefined,
       applicationFee: 0,
       status: "submitted",
-      idempotencyKey, 
+      idempotencyKey,
       statusHistory: [
         {
           status: "submitted",
@@ -183,6 +214,9 @@ export const submitServiceRequest = async (
         department: department.name,
         district: district.name,
         createdAt: sr.createdAt,
+        ...(sr.requestedLoadIncrease && {
+          requestedLoadIncrease: sr.requestedLoadIncrease,
+        }),
       },
     });
   } catch (err) {

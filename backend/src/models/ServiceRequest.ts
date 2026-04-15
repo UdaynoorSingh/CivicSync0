@@ -8,9 +8,8 @@ export type ServiceType =
   | "waste_management";
 export type ConnectionRequestType =
   | "new_connection"
-  | "reconnection"
   | "meter_replacement"
-  | "load_change"
+  | "load_increment"
   | "disconnection";
 export type ServiceRequestStatus =
   | "submitted"
@@ -22,26 +21,26 @@ export type ServiceRequestStatus =
 
 export interface IUploadedDocument {
   type: "id_proof" | "address_proof" | "property_document" | "other";
-  url: string; 
-  name: string; 
+  url: string;
+  name: string;
   uploadedAt: Date;
 }
 
 export interface ISRStatusEntry {
   status: ServiceRequestStatus;
-  updatedBy?: Types.ObjectId; 
+  updatedBy?: Types.ObjectId;
   note?: string;
   timestamp: Date;
 }
 
 export interface IServiceRequest extends Document {
-  userId: Types.ObjectId; 
-  assignedAdmin?: Types.ObjectId; 
+  userId: Types.ObjectId;
+  assignedAdmin?: Types.ObjectId;
 
-  department: Types.ObjectId; 
-  district: Types.ObjectId; 
+  department: Types.ObjectId;
+  district: Types.ObjectId;
 
-  referenceNumber: string; 
+  referenceNumber: string;
   serviceType: ServiceType;
   requestType: ConnectionRequestType;
 
@@ -56,18 +55,19 @@ export interface IServiceRequest extends Document {
     pincode: string;
   };
 
-  documents: IUploadedDocument[]; 
+  documents: IUploadedDocument[];
   additionalNotes?: string;
+  requestedLoadIncrease?: number;
 
   applicationFee: number;
-  paymentId?: Types.ObjectId; 
+  paymentId?: Types.ObjectId;
 
   status: ServiceRequestStatus;
   statusHistory: ISRStatusEntry[];
 
   estimatedCompletionDate?: Date;
   completedAt?: Date;
-  feedback?: Types.ObjectId; 
+  feedback?: Types.ObjectId;
 
   createdAt: Date;
   updatedAt: Date;
@@ -134,7 +134,7 @@ const serviceRequestSchema = new Schema<IServiceRequest>(
         "new_connection",
         "reconnection",
         "meter_replacement",
-        "load_change",
+        "load_increment",
         "disconnection",
       ],
       required: true,
@@ -153,6 +153,7 @@ const serviceRequestSchema = new Schema<IServiceRequest>(
 
     documents: { type: [documentSchema], default: [] },
     additionalNotes: { type: String },
+    requestedLoadIncrease: { type: Number, min: 0.5, max: 50 },
 
     applicationFee: { type: Number, required: true, default: 0 },
     paymentId: { type: Schema.Types.ObjectId, ref: "Payment" },
