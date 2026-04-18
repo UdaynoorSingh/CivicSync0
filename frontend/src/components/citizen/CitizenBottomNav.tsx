@@ -45,7 +45,7 @@ export default function CitizenBottomNav() {
   const navItems = citizen ? fullNavItems : guestNavItems;
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-30 bg-white border-t border-gray-200 flex">
+    <nav className="fixed bottom-0 inset-x-0 z-1100 bg-white border-t border-gray-200 flex">
       {navItems.map(({ to, icon: Icon, labelKey, end }) => (
         <NavLink
           key={to}

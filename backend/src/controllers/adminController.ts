@@ -17,7 +17,9 @@ function getPage(req: Request) {
 
 const isSuperAdmin = (req: Request): boolean => req.user?.role === "superadmin";
 
-const getAdminScope = (req: Request): { districtId?: string; departmentId?: string } => {
+const getAdminScope = (
+  req: Request,
+): { districtId?: string; departmentId?: string } => {
   const districtId = req.user?.districtId;
   const departmentId = req.user?.departmentId;
 
@@ -43,7 +45,11 @@ const generateBillNumber = async (
 ): Promise<string> => {
   const now = new Date();
   const yyyymm = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const connSuffix = connectionNumber.replace(/[^A-Za-z0-9]/g, "").slice(-6).toUpperCase() || "000000";
+  const connSuffix =
+    connectionNumber
+      .replace(/[^A-Za-z0-9]/g, "")
+      .slice(-6)
+      .toUpperCase() || "000000";
 
   for (let i = 0; i < 10; i += 1) {
     const rand = Math.floor(100 + Math.random() * 900);
@@ -61,7 +67,10 @@ export const getAdminComplaints = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { status, urgency, priority, search } = req.query as Record<string, string>;
+    const { status, urgency, priority, search } = req.query as Record<
+      string,
+      string
+    >;
     const { districtId, departmentId } = getAdminScope(req);
     const page = getPage(req);
 
@@ -69,6 +78,7 @@ export const getAdminComplaints = async (
     const filter: Record<string, any> = {};
     if (districtId) filter.district = districtId;
     if (departmentId) filter.department = departmentId;
+    filter.assignedAdmin = req.user?.id;
     if (status && status !== "all") filter.status = status;
     if (urgency && urgency !== "all") filter.urgency = urgency;
     if (priority && priority !== "all") filter.priority = priority;
@@ -120,18 +130,24 @@ export const getAdminStats = async (
     if (districtId) baseFilter.district = districtId;
     if (departmentId) baseFilter.department = departmentId;
 
-    const [totalComplaints, submitted, inProgress, resolved, rejected, totalSR] =
-      await Promise.all([
-        Complaint.countDocuments(baseFilter),
-        Complaint.countDocuments({ ...baseFilter, status: "submitted" }),
-        Complaint.countDocuments({
-          ...baseFilter,
-          status: { $in: ["acknowledged", "in_progress"] },
-        }),
-        Complaint.countDocuments({ ...baseFilter, status: "resolved" }),
-        Complaint.countDocuments({ ...baseFilter, status: "rejected" }),
-        ServiceRequest.countDocuments(baseFilter),
-      ]);
+    const [
+      totalComplaints,
+      submitted,
+      inProgress,
+      resolved,
+      rejected,
+      totalSR,
+    ] = await Promise.all([
+      Complaint.countDocuments(baseFilter),
+      Complaint.countDocuments({ ...baseFilter, status: "submitted" }),
+      Complaint.countDocuments({
+        ...baseFilter,
+        status: { $in: ["acknowledged", "in_progress"] },
+      }),
+      Complaint.countDocuments({ ...baseFilter, status: "resolved" }),
+      Complaint.countDocuments({ ...baseFilter, status: "rejected" }),
+      ServiceRequest.countDocuments(baseFilter),
+    ]);
 
     const billScope: Record<string, string> = {};
     if (districtId) billScope.district = districtId;
@@ -181,7 +197,9 @@ export const updateComplaintStatus = async (
     ];
 
     if (!status || !validStatuses.includes(status)) {
-      res.status(400).json({ success: false, message: "Invalid status value." });
+      res
+        .status(400)
+        .json({ success: false, message: "Invalid status value." });
       return;
     }
 
@@ -223,9 +241,16 @@ export const escalateComplaintPriority = async (
     const { id } = req.params;
     const { priority } = req.body as { priority?: ComplaintPriority };
 
-    const validPriorities: ComplaintPriority[] = ["low", "medium", "high", "critical"];
+    const validPriorities: ComplaintPriority[] = [
+      "low",
+      "medium",
+      "high",
+      "critical",
+    ];
     if (!priority || !validPriorities.includes(priority)) {
-      res.status(400).json({ success: false, message: "Invalid priority value." });
+      res
+        .status(400)
+        .json({ success: false, message: "Invalid priority value." });
       return;
     }
 
@@ -240,7 +265,9 @@ export const escalateComplaintPriority = async (
       return;
     }
 
-    res.status(200).json({ success: true, message: "Priority updated.", complaint });
+    res
+      .status(200)
+      .json({ success: true, message: "Priority updated.", complaint });
   } catch (err) {
     next(err);
   }
@@ -259,6 +286,7 @@ export const getAdminServiceRequests = async (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const filter: Record<string, any> = {};
     if (districtId) filter.district = districtId;
+    filter.assignedAdmin = req.user?.id;
     if (status && status !== "all") filter.status = status;
     if (search) {
       filter.$or = [
@@ -317,19 +345,24 @@ export const updateServiceRequestStatus = async (
     ];
 
     if (!status || !validStatuses.includes(status)) {
-      res.status(400).json({ success: false, message: "Invalid status value." });
+      res
+        .status(400)
+        .json({ success: false, message: "Invalid status value." });
       return;
     }
 
     const sr = await ServiceRequest.findById(id);
     if (!sr) {
-      res.status(404).json({ success: false, message: "Service request not found." });
+      res
+        .status(404)
+        .json({ success: false, message: "Service request not found." });
       return;
     }
 
     sr.status = status;
     if (status === "completed") sr.completedAt = new Date();
-    if (estimatedCompletionDate) sr.estimatedCompletionDate = new Date(estimatedCompletionDate);
+    if (estimatedCompletionDate)
+      sr.estimatedCompletionDate = new Date(estimatedCompletionDate);
 
     sr.statusHistory.push({
       status,
@@ -396,7 +429,12 @@ export const createAdminBill = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { userId, departmentId: requestedDepartmentId, amount, dueDate } = req.body as {
+    const {
+      userId,
+      departmentId: requestedDepartmentId,
+      amount,
+      dueDate,
+    } = req.body as {
       userId?: string;
       departmentId?: string;
       amount?: number;
@@ -435,12 +473,16 @@ export const createAdminBill = async (
     }
 
     if (!isValidObjectId(userId) || !isValidObjectId(effectiveDepartmentId)) {
-      res.status(400).json({ success: false, message: "Invalid user/department id." });
+      res
+        .status(400)
+        .json({ success: false, message: "Invalid user/department id." });
       return;
     }
 
     if (!Number.isFinite(Number(amount)) || Number(amount) <= 0) {
-      res.status(400).json({ success: false, message: "Amount must be greater than 0." });
+      res
+        .status(400)
+        .json({ success: false, message: "Amount must be greater than 0." });
       return;
     }
 
@@ -452,7 +494,11 @@ export const createAdminBill = async (
       return;
     }
 
-    if (districtId && user.district && user.district.toString() !== districtId) {
+    if (
+      districtId &&
+      user.district &&
+      user.district.toString() !== districtId
+    ) {
       res.status(403).json({
         success: false,
         message: "You can only create bills for users in your district.",
@@ -464,7 +510,9 @@ export const createAdminBill = async (
       .select("_id code name")
       .lean();
     if (!dept) {
-      res.status(404).json({ success: false, message: "Department not found." });
+      res
+        .status(404)
+        .json({ success: false, message: "Department not found." });
       return;
     }
 
@@ -472,15 +520,26 @@ export const createAdminBill = async (
     if (!billDistrict) {
       res.status(400).json({
         success: false,
-        message: "User district is missing. Update user profile with district first.",
+        message:
+          "User district is missing. Update user profile with district first.",
       });
       return;
     }
 
     const now = new Date();
     const periodFrom = new Date(now.getFullYear(), now.getMonth(), 1);
-    const periodTo = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-    const normalizedDueDate = dueDate ? new Date(dueDate) : new Date(now.getFullYear(), now.getMonth(), now.getDate() + 10);
+    const periodTo = new Date(
+      now.getFullYear(),
+      now.getMonth() + 1,
+      0,
+      23,
+      59,
+      59,
+      999,
+    );
+    const normalizedDueDate = dueDate
+      ? new Date(dueDate)
+      : new Date(now.getFullYear(), now.getMonth(), now.getDate() + 10);
 
     if (Number.isNaN(normalizedDueDate.getTime())) {
       res.status(400).json({ success: false, message: "Invalid dueDate." });
@@ -492,7 +551,8 @@ export const createAdminBill = async (
     );
 
     const connectionNumber =
-      matchedConnection?.connectionNumber ?? `${dept.code}-${user._id.toString().slice(-6).toUpperCase()}`;
+      matchedConnection?.connectionNumber ??
+      `${dept.code}-${user._id.toString().slice(-6).toUpperCase()}`;
 
     const billNumber = await generateBillNumber(dept.code, connectionNumber);
 
@@ -541,7 +601,12 @@ export const getAdminBills = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { status = "pending", userId, departmentId, search } = req.query as Record<string, string>;
+    const {
+      status = "pending",
+      userId,
+      departmentId,
+      search,
+    } = req.query as Record<string, string>;
     const page = getPage(req);
 
     const { districtId, departmentId: scopedDepartmentId } = getAdminScope(req);

@@ -79,6 +79,6 @@ const paymentSchema = new Schema<IPayment>(
 );
 
 paymentSchema.index({ userId: 1, status: 1 });
-paymentSchema.index({ receiptNumber: 1 });
+// paymentSchema.index({ receiptNumber: 1 });
 
 export const Payment = model<IPayment>("Payment", paymentSchema);

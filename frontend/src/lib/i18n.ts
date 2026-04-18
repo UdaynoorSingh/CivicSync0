@@ -204,8 +204,7 @@ const strings: Record<Language, Translations> = {
 
     // Mascot messages
     mascotWelcomeBack: "Welcome back! How can I help?",
-    mascotWelcomeGuest:
-      "Pick a department, then register a complaint or request a service. You'll sign in when you continue.",
+    mascotWelcomeGuest: "Welcome to CivicSync! Sign up to access all our services.",
     gasSupply: "Gas Supply",
     waterSupply: "Water Supply",
     sanitationDept: "Sanitation",
@@ -260,7 +259,8 @@ const strings: Record<Language, Translations> = {
 
     // Service request confirmation
     applicationSubmitted: "Application Submitted!",
-    srReceivedMsg: "Your service request has been received and will be reviewed by the department.",
+    srReceivedMsg:
+      "Your service request has been received and will be reviewed by the department.",
     referenceNumber: "Reference Number",
     saveForTracking: "Save this for tracking your application",
     serviceLabel: "Service",
@@ -269,7 +269,8 @@ const strings: Record<Language, Translations> = {
     districtLabel: "State",
     statusLabel: "Status",
     submittedOnLabel: "Submitted On",
-    srProcessingNote: "You will be notified when the department reviews your application. Processing typically takes 7\u201314 working days.",
+    srProcessingNote:
+      "You will be notified when the department reviews your application. Processing typically takes 7\u201314 working days.",
     trackApplication: "Track This Application",
     backToDashboard: "Back to Dashboard",
 
@@ -336,7 +337,8 @@ const strings: Record<Language, Translations> = {
     pincodeHint: "e.g. 110001",
     additionalNotes: "Additional Notes (optional)",
     additionalNotesHint: "Any additional information for the department",
-    docUploadNote: "Upload clear, legible documents. Accepted formats: PDF, JPEG, PNG, WebP (max 10 MB each).",
+    docUploadNote:
+      "Upload clear, legible documents. Accepted formats: PDF, JPEG, PNG, WebP (max 10 MB each).",
     idProofLabel: "ID Proof (Aadhaar / PAN / Voter ID)",
     tapToUpload: "Tap to upload (PDF / Image, max 10 MB)",
     submittingApp: "Submitting\u2026",
@@ -401,10 +403,12 @@ const strings: Record<Language, Translations> = {
     navServices: "Services",
     navTrack: "Track",
     navHelp: "Help",
+    welcomeGuest: "Welcome Citizen",
 
     // Dashboard
     noRecentActivity: "No recent activity yet.",
-    activityAppearHere: "Your complaints, service requests, and payments will appear here.",
+    activityAppearHere:
+      "Your complaints, service requests, and payments will appear here.",
     viewAllActivity: "View all activity \u2192",
 
     // Register Complaint
@@ -431,9 +435,11 @@ const strings: Record<Language, Translations> = {
     uploadPhotoRequired: "Upload Photo",
     tapToUploadPhoto: "Tap to upload a photo",
     ambiguousComplaint: "Ambiguous Complaint",
-    ambiguousDesc: "Your complaint has been detected as ambiguous by the system. Do you still want to proceed with registering the complaint?",
+    ambiguousDesc:
+      "Your complaint has been detected as ambiguous by the system. Do you still want to proceed with registering the complaint?",
     warningLabel: "Warning",
-    ambiguousWarning: "Appropriate action will be taken in case of false complaints.",
+    ambiguousWarning:
+      "Appropriate action will be taken in case of false complaints.",
     proceedAnyway: "Yes, Proceed Anyway",
     cancelComplaint: "Cancel",
     selectDeptFirst: "Please select a department first.",
@@ -605,8 +611,7 @@ const strings: Record<Language, Translations> = {
 
     // Mascot messages
     mascotWelcomeBack: "वापस आपका स्वागत है! मैं कैसे मदद कर सकता हूँ?",
-    mascotWelcomeGuest:
-      "विभाग चुनें, फिर शिकायत दर्ज करें या सेवा का अनुरोध करें। आगे बढ़ने पर साइन इन करना होगा।",
+    mascotWelcomeGuest: "CivicSync में आपका स्वागत है! सभी सेवाओं के लिए साइन अप करें।",
     gasSupply: "गैस आपूर्ति",
     waterSupply: "जल आपूर्ति",
     sanitationDept: "स्वच्छता",
@@ -658,7 +663,8 @@ const strings: Record<Language, Translations> = {
     complaintStatus: "स्थिति",
     statusPendingReview: "\uD83D\uDFE1 समीक्षा प्रतीक्षित",
     applicationSubmitted: "आवेदन जमा हो गया!",
-    srReceivedMsg: "आपका सेवा अनुरोध प्राप्त हो गया है और विभाग द्वारा समीक्षा की जाएगी।",
+    srReceivedMsg:
+      "आपका सेवा अनुरोध प्राप्त हो गया है और विभाग द्वारा समीक्षा की जाएगी।",
     referenceNumber: "संदर्भ संख्या",
     saveForTracking: "अपने आवेदन को ट्रैक करने के लिए इसे सहेजें",
     serviceLabel: "सेवा",
@@ -667,7 +673,8 @@ const strings: Record<Language, Translations> = {
     districtLabel: "जिला",
     statusLabel: "स्थिति",
     submittedOnLabel: "पर जमा किया",
-    srProcessingNote: "जब विभाग आपके आवेदन की समीक्षा करेगा तो आपको सूचित किया जाएगा।",
+    srProcessingNote:
+      "जब विभाग आपके आवेदन की समीक्षा करेगा तो आपको सूचित किया जाएगा।",
     trackApplication: "यह आवेदन ट्रैक करें",
     backToDashboard: "डैशबोर्ड पर वापस",
     paymentProcessedOk: "आपका भुगतान सफलतापूर्वक प्रोसेस हो गया।",
@@ -729,7 +736,8 @@ const strings: Record<Language, Translations> = {
     pincodeHint: "उदा. 110001",
     additionalNotes: "अतिरिक्त टिप्पणी (वैकल्पिक)",
     additionalNotesHint: "विभाग के लिए कोई अतिरिक्त जानकारी",
-    docUploadNote: "स्पष्ट दस्तावेज़ अपलोड करें। स्वीकृत फ़ॉर्मेट: PDF, JPEG, PNG, WebP (अधिकतम 10 MB)।",
+    docUploadNote:
+      "स्पष्ट दस्तावेज़ अपलोड करें। स्वीकृत फ़ॉर्मेट: PDF, JPEG, PNG, WebP (अधिकतम 10 MB)।",
     idProofLabel: "पहचान प्रमाण (आधार / पैन / वोटर ID)",
     tapToUpload: "अपलोड करने के लिए टैप करें (PDF / Image, अधिकतम 10 MB)",
     submittingApp: "जमा हो रहा है\u2026",
@@ -785,6 +793,7 @@ const strings: Record<Language, Translations> = {
     navServices: "सेवाएं",
     navTrack: "ट्रैक",
     navHelp: "सहायता",
+    welcomeGuest: "स्वागत है नागरिक",
     noRecentActivity: "अभी तक कोई गतिविधि नहीं।",
     activityAppearHere: "आपकी शिकायतें, सेवा अनुरोध और भुगतान यहाँ दिखेंगे।",
     viewAllActivity: "सभी गतिविधि देखें \u2192",
@@ -811,7 +820,8 @@ const strings: Record<Language, Translations> = {
     uploadPhotoRequired: "फोटो अपलोड करें",
     tapToUploadPhoto: "फोटो अपलोड करने के लिए टैप करें",
     ambiguousComplaint: "अस्पष्ट शिकायत",
-    ambiguousDesc: "आपकी शिकायत अस्पष्ट पाई गई है। क्या आप फिर भी आगे बढ़ना चाहते हैं?",
+    ambiguousDesc:
+      "आपकी शिकायत अस्पष्ट पाई गई है। क्या आप फिर भी आगे बढ़ना चाहते हैं?",
     warningLabel: "चेतावनी",
     ambiguousWarning: "झूठी शिकायतों के मामले में उचित कार्रवाई की जाएगी।",
     proceedAnyway: "हाँ, फिर भी आगे बढ़ें",
@@ -1109,7 +1119,8 @@ const strings: Record<Language, Translations> = {
     pincodeHint: "উদা. 110001",
     additionalNotes: "অতিৰিক্ত টোকা (ঐচ্ছিক)",
     additionalNotesHint: "বিভাগৰ বাবে যিকোনো অতিৰিক্ত তথ্য",
-    docUploadNote: "স্পষ্ট নথিপত্ৰ আপলোড কৰক। স্বীকৃত ফৰ্মেট: PDF, JPEG, PNG, WebP (সর্বাধিক 10 MB)।",
+    docUploadNote:
+      "স্পষ্ট নথিপত্ৰ আপলোড কৰক। স্বীকৃত ফৰ্মেট: PDF, JPEG, PNG, WebP (সর্বাধিক 10 MB)।",
     idProofLabel: "পৰিচয়ৰ প্ৰমাণ (আধাৰ / পেন / ভোটাৰ ID)",
     tapToUpload: "আপলোড কৰিবলৈ টেপ কৰক (PDF / ছবি, সর্বাধিক 10 MB)",
     submittingApp: "দাখিল হৈছে\u2026",
@@ -1117,7 +1128,8 @@ const strings: Record<Language, Translations> = {
     pleaseSelectService: "অনুগ্ৰহ কৰি এটা সেৱাৰ প্ৰকাৰ বাছক।",
     step: "পদক্ষেপ",
     of: "ৰ",
-    fillRequiredFields: "অনুগ্ৰহ কৰি সকলো প্ৰয়োজনীয় ক্ষেত্ৰ সঠিকভাৱে পূৰণ কৰক।",
+    fillRequiredFields:
+      "অনুগ্ৰহ কৰি সকলো প্ৰয়োজনীয় ক্ষেত্ৰ সঠিকভাৱে পূৰণ কৰক।",
     noPendingBills: "কোনো বাকী বিল পোৱা নগ'ল।",
     billBreakdownFor: "বিলৰ বিৱৰণ",
     invalidBillId: "অবৈধ বিল আইডি।",
@@ -1166,7 +1178,8 @@ const strings: Record<Language, Translations> = {
     navTrack: "ট্ৰেক",
     navHelp: "সহায়",
     noRecentActivity: "এতিয়ালৈকে কোনো কাৰ্যকলাপ নাই।",
-    activityAppearHere: "আপোনাৰ অভিযোগ, সেৱা অনুৰোধ আৰু পৰিশোধসমূহ ইয়াত দেখা যাব।",
+    activityAppearHere:
+      "আপোনাৰ অভিযোগ, সেৱা অনুৰোধ আৰু পৰিশোধসমূহ ইয়াত দেখা যাব।",
     viewAllActivity: "সকলো কাৰ্যকলাপ চাওক \u2192",
     selectDeptQuestion: "এই সমস্যা কোন বিভাগৰ?",
     personalOrLocality: "এয়া ব্যক্তিগত নে স্থানীয় সমস্যা?",
@@ -1175,7 +1188,8 @@ const strings: Record<Language, Translations> = {
     locality: "স্থানীয়",
     localityDesc: "সম্প্ৰদায়ক প্ৰভাৱিত কৰে",
     issueCategory: "সমস্যাৰ শ্ৰেণী",
-    describeIssuePlaceholder: "অনুগ্ৰহ কৰি সমস্যাটো বিস্তাৰিতভাৱে বৰ্ণনা কৰক\u2026",
+    describeIssuePlaceholder:
+      "অনুগ্ৰহ কৰি সমস্যাটো বিস্তাৰিতভাৱে বৰ্ণনা কৰক\u2026",
     urgencyLevel: "জৰুৰীতাৰ স্তৰ",
     low: "কম",
     medium: "মধ্যম",
@@ -1191,7 +1205,8 @@ const strings: Record<Language, Translations> = {
     uploadPhotoRequired: "ফটো আপলোড কৰক",
     tapToUploadPhoto: "ফটো আপলোড কৰিবলৈ টেপ কৰক",
     ambiguousComplaint: "অস্পষ্ট অভিযোগ",
-    ambiguousDesc: "আপোনাৰ অভিযোগ অস্পষ্ট বুলি চিহ্নিত হৈছে। আপুনি কি তথাপিও আগবাঢ়িব বিচাৰে?",
+    ambiguousDesc:
+      "আপোনাৰ অভিযোগ অস্পষ্ট বুলি চিহ্নিত হৈছে। আপুনি কি তথাপিও আগবাঢ়িব বিচাৰে?",
     warningLabel: "সতৰ্কতা",
     ambiguousWarning: "মিছা অভিযোগৰ ক্ষেত্ৰত উচিত ব্যৱস্থা লোৱা হ'ব।",
     proceedAnyway: "হয়, তথাপিও আগবাঢ়ক",

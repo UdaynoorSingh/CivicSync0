@@ -6,6 +6,7 @@ import type { PostAuthRedirect } from "./lib/authRedirect";
 import KioskLayout from "./layouts/KioskLayout";
 import AdminLayout from "./layouts/AdminLayout";
 import HeadAdminLayout from "./layouts/HeadAdminLayout";
+import GuestLayout from "./layouts/GuestLayout";
 
 import SplashScreen from "./pages/onboarding/SplashScreen";
 import LanguageSelectionPage from "./pages/onboarding/LanguageSelectionPage";
@@ -41,6 +42,7 @@ import HeadAdminDashboardPage from "./pages/admin/HeadAdminDashboardPage";
 import HeadAdminFeedbackPage from "./pages/admin/HeadAdminFeedbackPage";
 
 import NotFoundPage from "./pages/NotFoundPage";
+import GuestMap from "./components/guest/GuestMap";
 
 /** Kiosk shell: admins are redirected; citizens and visitors see the citizen layout. */
 function CitizenKioskGate() {
@@ -104,7 +106,12 @@ export default function App() {
         />
         <Route path="/otp" element={<OTPPage />} />
         <Route path="/head-admin/otp" element={<HeadAdminOTPPage />} />
-        <Route path="/guest" element={<GuestAccessPage />} />
+
+        <Route element={<GuestLayout />}>
+          <Route path="/guest" element={<GuestAccessPage />} />
+          <Route path="/guest/help" element={<HelpSupportPage />} />
+          <Route path="/guest/map" element={<GuestMap />} />
+        </Route>
 
         <Route element={<CitizenKioskGate />}>
           <Route path="/citizen" element={<CitizenDashboard />} />

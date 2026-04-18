@@ -8,9 +8,8 @@ export type ServiceType =
   | "waste_management";
 export type ConnectionRequestType =
   | "new_connection"
-  | "reconnection"
   | "meter_replacement"
-  | "load_change"
+  | "load_increment"
   | "disconnection";
 export type ServiceRequestStatus =
   | "submitted"
@@ -18,30 +17,31 @@ export type ServiceRequestStatus =
   | "approved"
   | "rejected"
   | "processing"
-  | "completed";
+  | "completed"
+  | "escalated";
 
 export interface IUploadedDocument {
   type: "id_proof" | "address_proof" | "property_document" | "other";
-  url: string; 
-  name: string; 
+  url: string;
+  name: string;
   uploadedAt: Date;
 }
 
 export interface ISRStatusEntry {
   status: ServiceRequestStatus;
-  updatedBy?: Types.ObjectId; 
+  updatedBy?: Types.ObjectId;
   note?: string;
   timestamp: Date;
 }
 
 export interface IServiceRequest extends Document {
-  userId: Types.ObjectId; 
-  assignedAdmin?: Types.ObjectId; 
+  userId: Types.ObjectId;
+  assignedAdmin?: Types.ObjectId;
 
-  department: Types.ObjectId; 
-  district: Types.ObjectId; 
+  department: Types.ObjectId;
+  district: Types.ObjectId;
 
-  referenceNumber: string; 
+  referenceNumber: string;
   serviceType: ServiceType;
   requestType: ConnectionRequestType;
 
@@ -56,23 +56,27 @@ export interface IServiceRequest extends Document {
     pincode: string;
   };
 
-  documents: IUploadedDocument[]; 
+  documents: IUploadedDocument[];
   additionalNotes?: string;
+  requestedLoadIncrease?: number;
 
   applicationFee: number;
-  paymentId?: Types.ObjectId; 
+  paymentId?: Types.ObjectId;
 
   status: ServiceRequestStatus;
   statusHistory: ISRStatusEntry[];
 
   estimatedCompletionDate?: Date;
   completedAt?: Date;
-  feedback?: Types.ObjectId; 
+  feedback?: Types.ObjectId;
 
   createdAt: Date;
   updatedAt: Date;
 
   idempotencyKey?: string;
+
+  escalationLevel: number; // Tracks how many times it has been escalated (Default 0)
+  slaBreachTime: Date; // The exact time the ticket will breach SLA
 }
 
 const documentSchema = new Schema<IUploadedDocument>(
@@ -100,6 +104,7 @@ const srStatusEntrySchema = new Schema<ISRStatusEntry>(
         "rejected",
         "processing",
         "completed",
+        "escalated",
       ],
       required: true,
     },
@@ -134,7 +139,7 @@ const serviceRequestSchema = new Schema<IServiceRequest>(
         "new_connection",
         "reconnection",
         "meter_replacement",
-        "load_change",
+        "load_increment",
         "disconnection",
       ],
       required: true,
@@ -153,6 +158,7 @@ const serviceRequestSchema = new Schema<IServiceRequest>(
 
     documents: { type: [documentSchema], default: [] },
     additionalNotes: { type: String },
+    requestedLoadIncrease: { type: Number, min: 0.5, max: 50 },
 
     applicationFee: { type: Number, required: true, default: 0 },
     paymentId: { type: Schema.Types.ObjectId, ref: "Payment" },
@@ -166,6 +172,7 @@ const serviceRequestSchema = new Schema<IServiceRequest>(
         "rejected",
         "processing",
         "completed",
+        "escalated",
       ],
       default: "submitted",
     },
@@ -175,6 +182,9 @@ const serviceRequestSchema = new Schema<IServiceRequest>(
     completedAt: { type: Date },
     feedback: { type: Schema.Types.ObjectId, ref: "Feedback" },
     idempotencyKey: { type: String, unique: true, sparse: true },
+
+    escalationLevel: { type: Number, required: true, default: 0 },
+    slaBreachTime: { type: Date },
   },
   { timestamps: true },
 );
@@ -182,9 +192,7 @@ const serviceRequestSchema = new Schema<IServiceRequest>(
 serviceRequestSchema.index({ userId: 1, status: 1 });
 serviceRequestSchema.index({ district: 1, department: 1, status: 1 });
 serviceRequestSchema.index({ assignedAdmin: 1, status: 1 });
-serviceRequestSchema.index({ idempotencyKey: 1 });
+// serviceRequestSchema.index({ idempotencyKey: 1 });
+serviceRequestSchema.index({ status: 1, slaBreachTime: 1 });
 
-export const ServiceRequest = model<IServiceRequest>(
-  "ServiceRequest",
-  serviceRequestSchema,
-);
+export const ServiceRequest = model<IServiceRequest>("ServiceRequest", serviceRequestSchema);

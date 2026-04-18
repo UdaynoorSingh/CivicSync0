@@ -5,6 +5,8 @@ import { Department } from "../models/Department";
 import { District } from "../models/District";
 import { generateRefNumber } from "../utils/generateRefNumber";
 import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload";
+import { calculateSLA } from "../utils/calculateSLA";
+import { Admin } from "../models";
 
 const SERVICE_CODE: Record<string, string> = {
   electricity: "ELEC",
@@ -20,7 +22,7 @@ export const submitServiceRequest = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const idempotencyKey = req.headers['x-idempotency-key'] as string;
+    const idempotencyKey = req.headers["x-idempotency-key"] as string;
 
     if (idempotencyKey) {
       const existingReq = await ServiceRequest.findOne({ idempotencyKey });
@@ -35,6 +37,9 @@ export const submitServiceRequest = async (
             serviceType: existingReq.serviceType,
             requestType: existingReq.requestType,
             createdAt: existingReq.createdAt,
+            ...(existingReq.requestedLoadIncrease && {
+              requestedLoadIncrease: existingReq.requestedLoadIncrease,
+            }),
           },
         });
         return;
@@ -52,6 +57,7 @@ export const submitServiceRequest = async (
       pincode = "000000",
       districtName,
       additionalNotes,
+      requestedLoadIncrease,
     } = req.body as {
       serviceType?: string;
       requestType?: string;
@@ -63,6 +69,7 @@ export const submitServiceRequest = async (
       pincode?: string;
       districtName?: string;
       additionalNotes?: string;
+      requestedLoadIncrease?: number;
     };
 
     if (
@@ -78,6 +85,26 @@ export const submitServiceRequest = async (
           "serviceType, applicantName, contactPhone, city, and districtName are required.",
       });
       return;
+    }
+
+    // Validate requestedLoadIncrease for electricity load_increment requests
+    if (serviceType === "electricity" && requestType === "load_increment") {
+      if (!requestedLoadIncrease) {
+        res.status(400).json({
+          success: false,
+          message:
+            "requestedLoadIncrease is required for load increment requests.",
+        });
+        return;
+      }
+      const loadValue = parseFloat(String(requestedLoadIncrease));
+      if (isNaN(loadValue) || loadValue < 0.5 || loadValue > 50) {
+        res.status(400).json({
+          success: false,
+          message: "requestedLoadIncrease must be between 0.5 and 50 kW.",
+        });
+        return;
+      }
     }
 
     const deptCode = SERVICE_CODE[serviceType];
@@ -122,7 +149,9 @@ export const submitServiceRequest = async (
           files?: { [fieldname: string]: Express.Multer.File[] };
         }
       ).files ?? {};
-    const uploadedFiles = Object.values(filesDict).flat() as Express.Multer.File[];
+    const uploadedFiles = Object.values(
+      filesDict,
+    ).flat() as Express.Multer.File[];
 
     const documents = await Promise.all(
       uploadedFiles.map(async (f) => {
@@ -141,10 +170,19 @@ export const submitServiceRequest = async (
 
     const referenceNumber = await generateRefNumber("SRQ", ServiceRequest);
 
+    const slaBreachTime = calculateSLA("medium"); // Assuming default medium priority for standard SRs
+    const tier1Admin = await Admin.findOne({
+      district: district._id,
+      department: department._id,
+      tier: 1,
+      isActive: true,
+    }).sort({ lastLogin: -1 });
+
     const sr = await ServiceRequest.create({
       userId: req.user!.id,
       department: department._id,
       district: district._id,
+      assignedAdmin: tier1Admin ? tier1Admin._id : undefined,
       referenceNumber,
       serviceType,
       requestType,
@@ -159,9 +197,15 @@ export const submitServiceRequest = async (
       },
       documents,
       additionalNotes,
+      requestedLoadIncrease:
+        requestedLoadIncrease !== undefined
+          ? parseFloat(String(requestedLoadIncrease))
+          : undefined,
       applicationFee: 0,
       status: "submitted",
-      idempotencyKey, 
+      idempotencyKey,
+      escalationLevel : 0,
+      slaBreachTime,
       statusHistory: [
         {
           status: "submitted",
@@ -183,6 +227,9 @@ export const submitServiceRequest = async (
         department: department.name,
         district: district.name,
         createdAt: sr.createdAt,
+        ...(sr.requestedLoadIncrease && {
+          requestedLoadIncrease: sr.requestedLoadIncrease,
+        }),
       },
     });
   } catch (err) {

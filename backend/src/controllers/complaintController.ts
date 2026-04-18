@@ -6,9 +6,13 @@ import { Complaint } from "../models/Complaint";
 import { generateRefNumber } from "../utils/generateRefNumber";
 import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload";
 import { getStateCoords } from "../utils/stateCoordinates";
+import { calculateSLA } from "../utils/calculateSLA";
 
-/* ─── Nominatim geocoder (free, no API key needed) ────────────────────────── */
-async function geocodeAddress(
+import https from "https";
+import { Admin } from "../models";
+
+/* ─── Nominatim geocoder (uses Node built-in https — works on all Node versions) */
+function geocodeAddress(
   streetAddress: string,
   city: string,
   state: string,
@@ -175,11 +179,23 @@ export const submitComplaint = async (
 
     const referenceNumber = await generateRefNumber("COMP");
 
+    // calculating SLA
+    const slaBreachTime = calculateSLA(urgency);
+
+    // Finding an active Tier 1 Admin for this district & department
+    const tier1Admin = await Admin.findOne({
+      district: district._id,
+      department: department._id,
+      tier: 1,
+      isActive: true,
+    }).sort({ lastLogin: -1 }); // Basic load balancing: assign to recently active
+
     // ── Create complaint with geocoded coordinates ────────────────────────
     const complaint = await Complaint.create({
       userId,
       department: department._id,
       district: district._id,
+      assignedAdmin: tier1Admin ? tier1Admin._id : undefined, // add the assigned admin field
       referenceNumber,
       category,
       description,
@@ -199,6 +215,8 @@ export const submitComplaint = async (
       priority: urgency,
       status: "submitted",
       idempotencyKey,
+      escalationLevel : 0,
+      slaBreachTime,
       statusHistory: [
         {
           status: "submitted",

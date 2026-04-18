@@ -187,3 +187,41 @@ export const deleteAllNotifications = async (
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
+
+/**
+ * Public endpoint for guest users to view district-wide notifications
+ * No authentication required - returns only active, district-specific notifications
+ */
+export const getPublicNotificationsByDistrict = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { districtId } = req.params;
+    const districtIdStr = Array.isArray(districtId)
+      ? districtId[0]
+      : districtId;
+
+    if (!districtIdStr || districtIdStr.trim() === "") {
+      res.status(400).json({
+        success: false,
+        message: "District ID is required",
+      });
+      return;
+    }
+
+    const notifications = await Notification.find({
+      isActive: true,
+      district: districtIdStr,
+      status: { $exists: false }, // Only active notifications
+    })
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .select("title body type priority createdAt expiresAt");
+
+    res.status(200).json({ success: true, notifications });
+  } catch (error) {
+    console.error("Get Public Notifications Error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};

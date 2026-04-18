@@ -12,6 +12,7 @@ interface SRResult {
   department: string;
   district: string;
   createdAt: string;
+  requestedLoadIncrease?: number;
 }
 
 const SERVICE_ICONS: Record<string, string> = {
@@ -74,6 +75,9 @@ export default function ServiceRequestConfirmPage() {
               `${SERVICE_ICONS[sr.serviceType] ?? ""} ${sr.serviceType} Connection`,
             ],
             [t("requestTypeLabel"), sr.requestType.replace("_", " ")],
+            ...(sr.requestedLoadIncrease !== undefined
+              ? [["Requested Load Increase", `${sr.requestedLoadIncrease} kW`]]
+              : []),
             [t("departmentLabel"), sr.department],
             [t("districtLabel"), sr.district],
             [t("statusLabel"), sr.status],
