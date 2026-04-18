@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState } from "react";
 import { INDIAN_STATES } from "../../lib/indianStates";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import MascotGuide from "../../components/shared/MascotGuide";
 import type { MascotEmotion } from "../../components/shared/MascotGuide";
@@ -127,7 +127,6 @@ export default function NewServiceRequestPage() {
 
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const location = useLocation();
 
   const step2Valid =
     applicantName.trim().length > 0 &&
@@ -300,15 +299,7 @@ export default function NewServiceRequestPage() {
           animate={{ opacity: 1, x: 0 }}
           className="space-y-3"
         >
-          {departmentSlug && (
-            <div className="rounded-xl border border-[#1E3A5F]/20 bg-white px-3 py-2.5 text-sm text-[#1E3A5F]">
-              {t("departmentDataScope")}{" "}
-              <span className="font-bold">
-                {t(departmentTitleI18nKey(departmentSlug))}
-              </span>
-            </div>
-          )}
-          {visibleServices.map(({ type, label, icon, desc }) => (
+          {SERVICES.map(({ type, label, icon, desc }) => (
             <button
               key={type}
               onClick={() => {
