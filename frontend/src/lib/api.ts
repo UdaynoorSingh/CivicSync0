@@ -293,10 +293,12 @@ export const submitComplaint = (payload: ComplaintPayload) => {
 export const getMyComplaints = () =>
   request<{ success: boolean; complaints: unknown[] }>("/complaints/my");
 
-export const getDistrictComplaints = (districtName: string) =>
-  request<{ success: boolean; descriptions: string[] }>(
-    `/complaints/district/${encodeURIComponent(districtName)}`,
+export const getDistrictComplaints = (districtName: string, departmentCode?: string) => {
+  const qs = departmentCode ? `?departmentCode=${departmentCode}` : "";
+  return request<{ success: boolean; descriptions: string[] }>(
+    `/complaints/district/${encodeURIComponent(districtName)}${qs}`,
   );
+};
 
 export const getComplaintByRef = (refNumber: string) =>
   request<{ success: boolean; complaint: unknown }>(`/complaints/${refNumber}`);

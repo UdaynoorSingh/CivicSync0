@@ -7,7 +7,7 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
 load_dotenv()
 
-loader = PyPDFLoader("Structure.pdf")
+loader = PyPDFLoader("CivicSync_User_Guide.pdf")
 documents = loader.load()
 
 splitter = RecursiveCharacterTextSplitter(
