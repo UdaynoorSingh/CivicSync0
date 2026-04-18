@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useMemo } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
@@ -13,7 +13,6 @@ import {
   XCircle,
   RefreshCw,
   Receipt,
-  Download,
   CreditCard,
   Banknote,
   FileText,
@@ -23,6 +22,7 @@ import {
 import { useTranslation } from "../../lib/i18n";
 import * as api from "../../lib/api";
 import MascotGuide from "../../components/shared/MascotGuide";
+import ReceiptOptionsModal from "../../components/citizen/ReceiptOptionsModal";
 import type { MascotEmotion } from "../../components/shared/MascotGuide";
 import type {
   CitizenServiceRequest,
@@ -31,6 +31,15 @@ import type {
   PaymentStatus,
   BillStatus,
 } from "../../lib/api";
+import {
+  parseDepartmentSlugFromState,
+  complaintMatchesSlug,
+  serviceRequestMatchesSlug,
+  billMatchesSlug,
+  paymentMatchesSlug,
+  departmentTitleI18nKey,
+  slugToComplaintDepartmentKey,
+} from "../../lib/departmentContext";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Complaint {
@@ -204,21 +213,9 @@ function PaymentCard({
   expanded: boolean;
   onToggle: () => void;
 }) {
-  const [downloading, setDownloading] = useState(false);
+  const { t } = useTranslation();
+  const [receiptOpen, setReceiptOpen] = useState(false);
   const cfg = PAYMENT_STATUS_CONFIG[p.status];
-
-  const handleDownload = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!p.receiptUrl && p.status !== "success") return;
-    setDownloading(true);
-    try {
-      await api.downloadPaymentReceipt(p._id);
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to download receipt");
-    } finally {
-      setDownloading(false);
-    }
-  };
 
   return (
     <motion.div
@@ -319,18 +316,25 @@ function PaymentCard({
                 )}
               </div>
               {p.status === "success" && (
-                <button
-                  onClick={handleDownload}
-                  disabled={downloading}
-                  className="mt-1 w-full flex items-center justify-center gap-2 bg-[#1E3A5F] text-white text-xs font-semibold py-2 rounded-xl disabled:opacity-60"
-                >
-                  {downloading ? (
-                    <Loader2 size={13} className="animate-spin" />
-                  ) : (
-                    <Download size={13} />
-                  )}
-                  {downloading ? "Downloading…" : "Download Receipt"}
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setReceiptOpen(true);
+                    }}
+                    className="mt-1 w-full flex items-center justify-center gap-2 bg-[#1E3A5F] text-white text-xs font-semibold py-2 rounded-xl"
+                  >
+                    <FileText size={13} />
+                    {t("receiptOptionsTitle")}
+                  </button>
+                  <ReceiptOptionsModal
+                    open={receiptOpen}
+                    onClose={() => setReceiptOpen(false)}
+                    paymentId={p._id}
+                    receiptNumber={p.receiptNumber}
+                  />
+                </>
               )}
             </div>
           </motion.div>
@@ -746,6 +750,31 @@ export default function TrackStatusPage() {
 
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
+  const departmentSlug = useMemo(
+    () => parseDepartmentSlugFromState(location.state),
+    [location.state],
+  );
+
+  const complaintsFiltered = useMemo(() => {
+    if (!departmentSlug) return complaints;
+    return complaints.filter((c) => complaintMatchesSlug(c, departmentSlug));
+  }, [complaints, departmentSlug]);
+
+  const srsFiltered = useMemo(() => {
+    if (!departmentSlug) return srs;
+    return srs.filter((sr) => serviceRequestMatchesSlug(sr, departmentSlug));
+  }, [srs, departmentSlug]);
+
+  const billsFiltered = useMemo(() => {
+    if (!departmentSlug) return bills;
+    return bills.filter((b) => billMatchesSlug(b, departmentSlug));
+  }, [bills, departmentSlug]);
+
+  const paymentsFiltered = useMemo(() => {
+    if (!departmentSlug) return payments;
+    return payments.filter((p) => paymentMatchesSlug(p, departmentSlug));
+  }, [payments, departmentSlug]);
 
   // Load complaints on mount
   useEffect(() => {
@@ -810,7 +839,16 @@ export default function TrackStatusPage() {
     setSearchError("");
     try {
       const res = await api.getComplaintByRef(searchRef.trim().toUpperCase());
-      setSearchResult(res.complaint as Complaint);
+      const found = res.complaint as Complaint;
+      if (
+        departmentSlug &&
+        !complaintMatchesSlug(found, departmentSlug)
+      ) {
+        setSearchError(t("complaintWrongDepartment"));
+        setSearchResult(null);
+        return;
+      }
+      setSearchResult(found);
     } catch (err) {
       setSearchError(
         err instanceof Error ? err.message : "Complaint not found.",
@@ -822,7 +860,16 @@ export default function TrackStatusPage() {
 
   const toggle = (id: string) =>
     setExpanded((prev) => (prev === id ? null : id));
-  const displayComplaints = searchResult ? [searchResult] : complaints;
+  const displayComplaints = searchResult
+    ? [searchResult]
+    : complaintsFiltered;
+
+  const deptNavState = departmentSlug
+    ? {
+        departmentSlug,
+        prefillDepartmentKey: slugToComplaintDepartmentKey(departmentSlug),
+      }
+    : undefined;
 
   return (
     <div className="min-h-screen bg-[#EEF0FB] px-4 py-4">
@@ -833,6 +880,15 @@ export default function TrackStatusPage() {
         </button>
         <h1 className="text-xl font-bold text-gray-800">{t("trackStatus")}</h1>
       </div>
+
+      {departmentSlug && (
+        <div className="mb-3 rounded-xl border border-[#1E3A5F]/20 bg-white px-3 py-2.5 text-sm text-[#1E3A5F]">
+          {t("departmentDataScope")}{" "}
+          <span className="font-bold">
+            {t(departmentTitleI18nKey(departmentSlug))}
+          </span>
+        </div>
+      )}
 
       {/* Reference number search */}
       <div className="bg-white rounded-2xl shadow-sm p-3 mb-4 flex gap-2">
@@ -892,10 +948,10 @@ export default function TrackStatusPage() {
         } else if (tab === "complaints" && !loadingC && displayComplaints.length === 0) {
           emotion = "neutral";
           msg = t("mascotNoComplaints");
-        } else if (tab === "requests" && !loadingSR && srs.length === 0) {
+        } else if (tab === "requests" && !loadingSR && srsFiltered.length === 0) {
           emotion = "neutral";
           msg = t("mascotNoRequests");
-        } else if (tab === "payments" && !loadingP && payments.length === 0 && bills.length === 0) {
+        } else if (tab === "payments" && !loadingP && paymentsFiltered.length === 0 && billsFiltered.length === 0) {
           emotion = "neutral";
           msg = t("mascotNoPayments");
         } else {
@@ -925,10 +981,10 @@ export default function TrackStatusPage() {
               className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${tab === t_ ? "bg-[#1E3A5F] text-white shadow" : "text-gray-500"}`}
             >
               {t_ === "complaints"
-                ? `${t("complaintsTab")}${complaints.length > 0 ? ` (${complaints.length})` : ""}`
+                ? `${t("complaintsTab")}${complaintsFiltered.length > 0 ? ` (${complaintsFiltered.length})` : ""}`
                 : t_ === "requests"
-                  ? `${t("requestsTab")}${srs.length > 0 ? ` (${srs.length})` : ""}`
-                  : `${t("paymentsTab")}${payments.length + bills.length > 0 ? ` (${payments.length + bills.length})` : ""}`}
+                  ? `${t("requestsTab")}${srsFiltered.length > 0 ? ` (${srsFiltered.length})` : ""}`
+                  : `${t("paymentsTab")}${paymentsFiltered.length + billsFiltered.length > 0 ? ` (${paymentsFiltered.length + billsFiltered.length})` : ""}`}
             </button>
           ))}
         </div>
@@ -946,7 +1002,12 @@ export default function TrackStatusPage() {
             <div className="text-center py-12 text-gray-400">
               <p className="text-sm">No complaints filed yet.</p>
               <button
-                onClick={() => navigate("/citizen/complaint/new")}
+                type="button"
+                onClick={() =>
+                  navigate("/citizen/complaint/new", {
+                    state: deptNavState,
+                  })
+                }
                 className="mt-3 text-xs text-[#1E3A5F] font-semibold underline"
               >
                 Register your first complaint →
@@ -974,18 +1035,23 @@ export default function TrackStatusPage() {
               <Loader2 size={18} className="animate-spin" /> Loading your
               requests…
             </div>
-          ) : srs.length === 0 ? (
+          ) : srsFiltered.length === 0 ? (
             <div className="text-center py-12 text-gray-400">
               <p className="text-sm">No service requests submitted yet.</p>
               <button
-                onClick={() => navigate("/citizen/service/new")}
+                type="button"
+                onClick={() =>
+                  navigate("/citizen/service/new", {
+                    state: departmentSlug ? { departmentSlug } : undefined,
+                  })
+                }
                 className="mt-3 text-xs text-[#1E3A5F] font-semibold underline"
               >
                 Submit a new connection request →
               </button>
             </div>
           ) : (
-            srs.map((sr, i) => (
+            srsFiltered.map((sr, i) => (
               <ServiceRequestCard
                 key={sr._id}
                 sr={sr}
@@ -1017,8 +1083,8 @@ export default function TrackStatusPage() {
                 }`}
               >
                 {st === "history"
-                  ? `Transactions${payments.length > 0 ? ` (${payments.length})` : ""}`
-                  : `Bills${bills.length > 0 ? ` (${bills.length})` : ""}`}
+                  ? `Transactions${paymentsFiltered.length > 0 ? ` (${paymentsFiltered.length})` : ""}`
+                  : `Bills${billsFiltered.length > 0 ? ` (${billsFiltered.length})` : ""}`}
               </button>
             ))}
           </div>
@@ -1031,7 +1097,7 @@ export default function TrackStatusPage() {
                   <Loader2 size={18} className="animate-spin" /> Loading
                   transactions…
                 </div>
-              ) : payments.length === 0 ? (
+              ) : paymentsFiltered.length === 0 ? (
                 <div className="text-center py-12 text-gray-400">
                   <Receipt size={36} className="mx-auto mb-3 opacity-30" />
                   <p className="text-sm font-medium">No payments yet.</p>
@@ -1040,7 +1106,7 @@ export default function TrackStatusPage() {
                   </p>
                 </div>
               ) : (
-                payments.map((p, i) => (
+                paymentsFiltered.map((p, i) => (
                   <PaymentCard
                     key={p._id}
                     p={p}
@@ -1060,7 +1126,7 @@ export default function TrackStatusPage() {
                 <div className="flex items-center justify-center gap-2 text-gray-400 py-12">
                   <Loader2 size={18} className="animate-spin" /> Loading bills…
                 </div>
-              ) : bills.length === 0 ? (
+              ) : billsFiltered.length === 0 ? (
                 <div className="text-center py-12 text-gray-400">
                   <IndianRupee size={36} className="mx-auto mb-3 opacity-30" />
                   <p className="text-sm font-medium">No bills found.</p>
@@ -1072,8 +1138,12 @@ export default function TrackStatusPage() {
                 <>
                   {/* Overdue / pending summary banner */}
                   {(() => {
-                    const overdue = bills.filter((b) => b.status === "overdue");
-                    const pending = bills.filter((b) => b.status === "pending");
+                    const overdue = billsFiltered.filter(
+                      (b) => b.status === "overdue",
+                    );
+                    const pending = billsFiltered.filter(
+                      (b) => b.status === "pending",
+                    );
                     const totalDue = [...overdue, ...pending].reduce(
                       (acc, b) => acc + b.amount,
                       0,
@@ -1127,7 +1197,7 @@ export default function TrackStatusPage() {
                       </div>
                     );
                   })()}
-                  {bills.map((b, i) => (
+                  {billsFiltered.map((b, i) => (
                     <BillCard
                       key={b._id}
                       b={b}

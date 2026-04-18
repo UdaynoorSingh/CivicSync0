@@ -6,6 +6,7 @@ import {
   getMyPayments,
   getPaymentById,
   downloadPaymentReceipt,
+  sendPaymentReceiptEmail,
   getRazorpayKey,
   markPaymentFailed,
   verifyBillPayment,
@@ -23,6 +24,7 @@ router.post("/verify", verifyPayment);
 router.post("/failure", markPaymentFailed);
 router.get("/my", getMyPayments);
 router.get("/:id/receipt", downloadPaymentReceipt);
+router.post("/:id/receipt/email", sendPaymentReceiptEmail);
 router.get("/:id", getPaymentById);
 
 export default router;

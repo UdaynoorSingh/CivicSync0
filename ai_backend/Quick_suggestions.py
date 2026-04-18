@@ -1,12 +1,9 @@
 import os
 import json
-import httpx
 from dotenv import load_dotenv
+from llm_fallback import call_llm_with_fallback_sync
 
 load_dotenv()
-
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 
 def get_quick_fix(user_query: str) -> dict:
@@ -25,34 +22,17 @@ Rules:
 - Do NOT include any text outside the JSON."""
 
     try:
-        with httpx.Client(timeout=15.0) as client:
-            resp = client.post(
-                GROQ_URL,
-                headers={
-                    "Authorization": f"Bearer {GROQ_API_KEY}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": "llama-3.1-8b-instant",
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_query},
-                    ],
-                    "temperature": 0.3,
-                    "max_tokens": 512,
-                    "response_format": {"type": "json_object"},
-                },
-            )
+        content = call_llm_with_fallback_sync(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_query},
+            ],
+            model_size="8b",
+            temperature=0.3,
+            max_tokens=512,
+            is_json=True
+        )
 
-        if resp.status_code != 200:
-            print(f"Groq API error: {resp.status_code} - {resp.text}")
-            return {
-                "quick_fix_instructions": ["Unable to generate suggestions at this time. Please contact support."],
-                "safety_warning": "If this is a life-threatening emergency, call 112 immediately.",
-            }
-
-        result = resp.json()
-        content = result["choices"][0]["message"]["content"]
         return json.loads(content)
 
     except Exception as e:

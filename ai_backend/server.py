@@ -13,6 +13,8 @@ from Similar_complaint import check_complaint
 from ChatBot import Query_answer
 from Ai_image_Validator import process_complaint
 import tempfile
+from llm_fallback import call_llm_with_fallback_async
+from Voice_Navigation import get_voice_intent
 
 load_dotenv()
 
@@ -21,7 +23,7 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://civicsync-new.vercel.app", 
+        "https://civic-sync0.vercel.app", 
         "http://localhost:5173" # Good to keep for local testing!
     ],
     allow_credentials=True,
@@ -103,8 +105,6 @@ async def verify_complaint(req: VerifyComplaintRequest):
             os.remove(temp_path)
 
 
-# ── Voice Navigation Endpoints ────────────────────────────────────────────────
-
 class TTSRequest(BaseModel):
     text: str
     language: Optional[str] = "hi-IN"  # Default Hindi for Indian kiosk users
@@ -137,7 +137,6 @@ async def voice_tts(req: TTSRequest):
         raise HTTPException(status_code=resp.status_code, detail=f"Sarvam TTS error: {resp.text}")
     
     data = resp.json()
-    # Sarvam returns { "audios": ["base64..."] }
     audios = data.get("audios", [])
     if not audios:
         raise HTTPException(status_code=500, detail="No audio returned from Sarvam")
@@ -175,183 +174,12 @@ class IntentRequest(BaseModel):
 
 @app.post("/voice/intent")
 async def voice_intent(req: IntentRequest):
-    """Smart intent router — detects navigation AND extracts complaint/form data in one step."""
-    if not GROQ_API_KEY:
-        raise HTTPException(status_code=500, detail="GROQ_API_KEY not configured")
-    
-    actions_str = json.dumps(req.valid_actions, indent=2)
-    
-    system_prompt = f"""You are a smart intent router for a civic services kiosk in India. 
-The user is currently on the page: {req.current_route}
-
-The valid actions the user can take from this page are:
-{actions_str}
-
-Your job:
-1. Determine which action best matches the user's spoken text.
-2. IMPORTANT: If the user describes a civic issue/complaint (e.g. "bijli ka wire gir gaya Sector 15 Karnal mein"), you must:
-   - Set action to "navigate_and_fill"
-   - Set target to "/citizen/complaint/new"
-   - Extract ALL form data from their speech into a "form_data" object
-3. Return ONLY a valid JSON object.
-
-Output format for NAVIGATION:
-{{"action": "navigate", "target": "<route>", "speak": "<Hindi confirmation>"}}
-
-Output format for COMPLAINT with details (navigate + auto-fill form):
-{{"action": "navigate_and_fill", "target": "/citizen/complaint/new", "speak": "<Hindi confirmation>", "form_data": {{
-  "department": "electricity|water|gas|sanitation|waste",
-  "category": "<specific category like Power Outage, Water Leakage, Gas Leak, etc.>",
-  "description": "<user's complaint in their own words>",
-  "urgency": "low|medium|high",
-  "state": "<Indian state if mentioned>",
-  "district": "<district if mentioned>",
-  "pincode": "<pincode if mentioned>",
-  "streetAddress": "<street/area/sector if mentioned>",
-  "scope": "personal|locality"
-}}}}
-
-Output format for STAY:
-{{"action": "stay", "target": "{req.current_route}", "speak": "<Hindi response>"}}
-
-Output format for ERROR:
-{{"action": "error", "target": "{req.current_route}", "speak": "<Hindi asking to repeat>"}}
-
-Department mapping:
-- Electricity issues (bijli, wire, power, light, meter, voltage) → "electricity"
-- Water issues (paani, pipeline, leakage, nala, supply) → "water"  
-- Gas issues (gas, pipeline, cylinder) → "gas"
-- Sanitation issues (sewage, drain, toilet, ganda paani) → "sanitation"
-- Waste issues (kachra, garbage, safai, dumping) → "waste"
-
-Urgency mapping:
-- Keywords like khatarnak, emergency, jaldi, turant, aag → "high"
-- Normal complaints → "medium"
-- Minor / suggestions → "low"
-
-Rules:
-- The "speak" value MUST be in Hindi.
-- The "speak" value MUST be ONLY plain text. Do NOT use any markdown (no bold **, no headers #, no backticks `).
-- For form_data, only include fields that the user actually mentioned. Omit unknown fields.
-- If user just wants to navigate without describing a complaint, use regular "navigate" action.
-- NEVER return anything other than the JSON object."""
-
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": req.user_text},
-    ]
-    
-    async with httpx.AsyncClient(timeout=20.0) as client:
-        resp = await client.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {GROQ_API_KEY}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": "llama-3.3-70b-versatile",
-                "messages": messages,
-                "temperature": 0.1,
-                "max_tokens": 512,
-                "response_format": {"type": "json_object"},
-            },
-        )
-    
-    if resp.status_code != 200:
-        raise HTTPException(status_code=resp.status_code, detail=f"Groq LLM error: {resp.text}")
-    
-    result = resp.json()
-    content = result["choices"][0]["message"]["content"]
-    
+    """Smart intent router — detects navigation."""
     try:
-        intent = json.loads(content)
-    except json.JSONDecodeError:
-        intent = {"action": "error", "target": req.current_route, "speak": "माफ़ कीजिए, मैं समझ नहीं पाया। कृपया दोबारा बोलें।"}
-    
-    return intent
-
-
-class FillFormRequest(BaseModel):
-    transcript: str
-    form_type: Optional[str] = "complaint"  # "complaint" or "service_request"
-
-@app.post("/voice/fill-form")
-async def voice_fill_form(req: FillFormRequest):
-    """Extract structured form fields from natural speech using Groq LLaMA 3.3 70B."""
-    if not GROQ_API_KEY:
-        raise HTTPException(status_code=500, detail="GROQ_API_KEY not configured")
-    
-    if req.form_type == "service_request":
-        schema_desc = """Extract these fields:
-- "service_type": "electricity|water|gas"
-- "request_type": "new_connection|reconnection|meter_replacement|load_change"  
-- "applicant_name": string (if mentioned)
-- "contact_phone": string (if mentioned)
-- "street_address": string (area/sector/house)
-- "state": Indian state name
-- "district": district name
-- "pincode": 6-digit pincode
-- "additional_notes": any extra details"""
-    else:
-        schema_desc = """Extract these fields:
-- "department": "electricity|water|gas|sanitation|waste"
-- "category": specific category (Power Outage, Water Leakage, Gas Leak, Sewage Overflow, Garbage Not Collected, Streetlight Fault, Road Damage, etc.)
-- "description": the user's complaint in their own words (clean it up but keep the meaning)
-- "urgency": "low|medium|high" (khatarnak/emergency/jaldi = high, normal = medium, minor = low)
-- "state": Indian state name if mentioned
-- "district": district name if mentioned
-- "pincode": 6-digit pincode if mentioned
-- "street_address": street/area/sector if mentioned
-- "scope": "personal|locality" (personal if affects just them, locality if affects the community)"""
-
-    system_prompt = f"""You are a form-filling assistant for an Indian civic services kiosk.
-The user has spoken their request in natural language (possibly Hindi, Hinglish, or English).
-
-Your job: Extract structured form data from the speech.
-
-{schema_desc}
-
-Rules:
-- Only include fields that the user actually mentioned or that can be clearly inferred.
-- Return ONLY a valid JSON object with the extracted fields.
-- If a field cannot be determined, do NOT include it in the output.
-- Clean up the description but preserve the user's meaning.
-- Translate Hindi department/category keywords to the correct English values."""
-
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": req.transcript},
-    ]
-    
-    async with httpx.AsyncClient(timeout=20.0) as client:
-        resp = await client.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {GROQ_API_KEY}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": "llama-3.3-70b-versatile",
-                "messages": messages,
-                "temperature": 0.1,
-                "max_tokens": 512,
-                "response_format": {"type": "json_object"},
-            },
-        )
-    
-    if resp.status_code != 200:
-        raise HTTPException(status_code=resp.status_code, detail=f"Groq LLM error: {resp.text}")
-    
-    result = resp.json()
-    content = result["choices"][0]["message"]["content"]
-    
-    try:
-        form_data = json.loads(content)
-    except json.JSONDecodeError:
-        form_data = {}
-    
-    return {"form_data": form_data}
-
+        intent = await get_voice_intent(req.current_route, req.valid_actions, req.user_text)
+        return intent
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/voice/chat")
 async def voice_chat(audio: UploadFile = File(...)):

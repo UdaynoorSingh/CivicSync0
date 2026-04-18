@@ -293,10 +293,12 @@ export const submitComplaint = (payload: ComplaintPayload) => {
 export const getMyComplaints = () =>
   request<{ success: boolean; complaints: unknown[] }>("/complaints/my");
 
-export const getDistrictComplaints = (districtName: string) =>
-  request<{ success: boolean; descriptions: string[] }>(
-    `/complaints/district/${encodeURIComponent(districtName)}`,
+export const getDistrictComplaints = (districtName: string, departmentCode?: string) => {
+  const qs = departmentCode ? `?departmentCode=${departmentCode}` : "";
+  return request<{ success: boolean; descriptions: string[] }>(
+    `/complaints/district/${encodeURIComponent(districtName)}${qs}`,
   );
+};
 
 export const getComplaintByRef = (refNumber: string) =>
   request<{ success: boolean; complaint: unknown }>(`/complaints/${refNumber}`);
@@ -595,6 +597,14 @@ export interface CitizenPayment {
   createdAt: string;
   razorpayOrderId: string;
   razorpayPaymentId?: string;
+  /** Present when `getMyPayments` populates the related bill (department-scoped filtering). */
+  billId?: string | CitizenBill;
+  /** Present when populated — used with department filters on Track / payments. */
+  serviceRequestId?:
+    | string
+    | Pick<CitizenServiceRequest, "referenceNumber" | "serviceType" | "status"> & {
+        department?: { name: string; code: string };
+      };
 }
 
 export const getRazorpayKey = () =>
@@ -634,6 +644,15 @@ export const getMyPayments = () =>
 
 export const getPaymentById = (id: string) =>
   request<{ success: boolean; payment: CitizenPayment }>(`/payments/${id}`);
+
+export const sendPaymentReceiptByEmail = (paymentId: string, email: string) =>
+  request<{ success: boolean; message: string }>(
+    `/payments/${paymentId}/receipt/email`,
+    {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    },
+  );
 
 export const downloadPaymentReceipt = async (
   paymentId: string,

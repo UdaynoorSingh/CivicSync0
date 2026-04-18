@@ -1,13 +1,11 @@
 import os
 import json
-import httpx
 from dotenv import load_dotenv
 from vectore_store import vectorstore
+from llm_fallback import call_llm_with_fallback_sync
 
 load_dotenv()
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 
 def Query_answer(query: str) -> dict:
@@ -37,31 +35,17 @@ User Query: "{query}"
 Respond with ONLY a JSON object: {{"answer": "<your answer>"}}"""
 
     try:
-        with httpx.Client(timeout=30.0) as client:
-            resp = client.post(
-                GROQ_URL,
-                headers={
-                    "Authorization": f"Bearer {GROQ_API_KEY}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": "llama-3.3-70b-versatile",
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_message},
-                    ],
-                    "temperature": 0.3,
-                    "max_tokens": 1024,
-                    "response_format": {"type": "json_object"},
-                },
-            )
+        content = call_llm_with_fallback_sync(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message},
+            ],
+            model_size="70b",
+            temperature=0.3,
+            max_tokens=1024,
+            is_json=True
+        )
 
-        if resp.status_code != 200:
-            print(f"Groq API error: {resp.status_code} - {resp.text}")
-            return {"answer": "Sorry, I'm having trouble connecting. Please try again."}
-
-        result = resp.json()
-        content = result["choices"][0]["message"]["content"]
         parsed = json.loads(content)
 
         # Ensure the response has the "answer" key

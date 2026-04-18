@@ -14,6 +14,7 @@ SIGHT_ENGINE_API_KEY=os.getenv("SIGHT_ENGINE_API_KEY")
 SIGHT_ENGINE_API_USER=os.getenv("SIGHT_ENGINE_API_USER")
 
 class ComplaintStatus(BaseModel):
+    thought: str
     status: str
 
 def Ai_image_detect(image_path):
@@ -70,7 +71,9 @@ Your job is to determine whether the uploaded image is a genuine visual evidence
 
 User's complaint text: "{complaint_text}"
 
-Follow these rules STRICTLY and IN ORDER:
+You MUST "think" step-by-step first by analyzing the image contents and the complaint text before making a final status decision.
+
+Follow these rules STRICTLY and IN ORDER for the 'status' field:
 
 STEP 1 — RELEVANCE CHECK:
 Look at the image content. Does it show ANY kind of civic, infrastructure, public-service, 
@@ -85,24 +88,21 @@ If the image shows NONE of these and instead shows:
 - Random objects unrelated to civic issues
 - Any content that has NO connection to infrastructure, public services, or civic complaints
 
-→ Return: {{"status": "irrelevant image"}}
+→ Return status: "irrelevant image"
 
 STEP 2 — MATCH CHECK (only if image passed Step 1):
 Does the image specifically match the complaint described?
 For example, if the complaint is about "electricity pole broken" the image must show 
 an electricity pole or electrical infrastructure with visible damage.
 
-- If the image clearly shows the issue described in the complaint → Return: {{"status": "true complaint"}}
+- If the image clearly shows the issue described in the complaint → Return status: "true complaint"
 - If the complaint describes an issue that cannot be visually verified in a photo 
   (e.g., "power outage", "bad smell", "noise complaint", "intermittent water supply") 
-  → Return: {{"status": "unambiguous complaint"}}
+  → Return status: "unambiguous complaint"
 - If the image shows civic infrastructure but clearly does NOT match the complaint 
   (e.g., complaint says "broken road" but image shows a perfectly intact road, 
   or complaint says "water leak" but image shows electrical equipment with no water) 
-  → Return: {{"status": "fake complaint"}}
-
-Output ONLY a valid JSON object in this format: {{"status": "<your_status_choice>"}}
-Do not include markdown tags like ```json.
+  → Return status: "fake complaint"
 """
 
     try:
@@ -119,8 +119,32 @@ Do not include markdown tags like ```json.
         return json.loads(response.text)
 
     except Exception as e:
-        print("Gemini Error:", str(e))
-        return {"status": "error", "message": str(e)}
+        print("Gemini Vision Error:", str(e))
+        print("Triggering vision fallback...")
+        try:
+            import re
+            from llm_fallback import call_llm_with_fallback_vision_sync
+            
+            fallback_prompt = prompt + "\n\nCRITICAL: Return ONLY raw JSON starting with { and ending with } containing 'thought' and 'status' keys."
+            
+            content = call_llm_with_fallback_vision_sync(
+                prompt_text=fallback_prompt,
+                image_path=image_path,
+                temperature=0.0,
+                max_tokens=800
+            )
+            
+            json_str = content.replace("```json", "").replace("```", "").strip()
+            
+            json_match = re.search(r'(\{.*\})', json_str, re.DOTALL)
+            if json_match:
+                json_str = json_match.group(1)
+
+            return json.loads(json_str)
+            
+        except Exception as fallback_e:
+            print("Vision Fallback Error:", str(fallback_e))
+            return {"status": "error", "message": "All vision models failed."}
 
 def process_complaint(image_path, complaint_text):
 

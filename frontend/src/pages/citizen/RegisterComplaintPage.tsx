@@ -21,6 +21,11 @@ import { useTranslation } from "../../lib/i18n";
 import { useSessionStore } from "../../store/sessionStore";
 import * as api from "../../lib/api";
 import MascotGuide from "../../components/shared/MascotGuide";
+import {
+  isDepartmentSlug,
+  parseDepartmentSlugFromState,
+  slugToComplaintDepartmentKey,
+} from "../../lib/departmentContext";
 import type { MascotEmotion } from "../../components/shared/MascotGuide";
 
 // ── Department config — `code` must match backend seed codes ──────────────────
@@ -189,11 +194,45 @@ export default function RegisterComplaintPage() {
   const location = useLocation();
   const aiBaseUrl = import.meta.env.VITE_AI_API_URL as string;
 
-  // ── Voice Auto-Fill: read form data from route state ─────────────────────
+  // ── Voice Auto-Fill + post-login department prefill ───────────────────────
   useEffect(() => {
-    const voiceData = (
-      location.state as { voiceFormData?: Record<string, string> }
-    )?.voiceFormData;
+    const routeState = location.state as {
+      voiceFormData?: Record<string, string>;
+      prefillDepartmentKey?: string;
+      departmentSlug?: string;
+    };
+    if (routeState?.prefillDepartmentKey) {
+      const dept = DEPARTMENTS.find(
+        (d) => d.key === routeState.prefillDepartmentKey,
+      );
+      if (dept) {
+        setSelectedDept(dept);
+        setStep(2);
+        const slug = parseDepartmentSlugFromState(routeState);
+        navigate(location.pathname, {
+          replace: true,
+          state: slug ? { departmentSlug: slug } : undefined,
+        });
+      }
+      return;
+    }
+
+    const slugOnly = routeState?.departmentSlug;
+    if (slugOnly && isDepartmentSlug(slugOnly)) {
+      const key = slugToComplaintDepartmentKey(slugOnly);
+      const dept = DEPARTMENTS.find((d) => d.key === key);
+      if (dept) {
+        setSelectedDept(dept);
+        setStep(2);
+        navigate(location.pathname, {
+          replace: true,
+          state: { departmentSlug: slugOnly },
+        });
+        return;
+      }
+    }
+
+    const voiceData = routeState?.voiceFormData;
     if (!voiceData) return;
 
     // Auto-select department
@@ -239,8 +278,11 @@ export default function RegisterComplaintPage() {
     if (voiceData.pincode) setPincode(voiceData.pincode);
     if (voiceData.streetAddress) setStreetAddress(voiceData.streetAddress);
 
-    // Clear the route state so it doesn't re-apply on re-render
-    window.history.replaceState({}, document.title);
+    const slug = parseDepartmentSlugFromState(routeState);
+    navigate(location.pathname, {
+      replace: true,
+      state: slug ? { departmentSlug: slug } : undefined,
+    });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleStateChange = (s: string) => {
@@ -385,7 +427,7 @@ export default function RegisterComplaintPage() {
 
       if (complaintScope === "locality") {
         try {
-          const prevCompsRes = await api.getDistrictComplaints(state);
+          const prevCompsRes = await api.getDistrictComplaints(state, selectedDept.code);
           const prevComplaints = prevCompsRes.success
             ? prevCompsRes.descriptions
             : [];

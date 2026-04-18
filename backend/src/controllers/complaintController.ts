@@ -17,46 +17,34 @@ function geocodeAddress(
   city: string,
   state: string,
 ): Promise<{ lat: number; lng: number } | null> {
-  return new Promise((resolve) => {
-    try {
-      const query = [streetAddress, city, state, "India"]
-        .filter(Boolean)
-        .join(", ");
+  try {
+    const query = [streetAddress, city, state, "India"]
+      .filter(Boolean)
+      .join(", ");
 
-      const url =
-        "https://nominatim.openstreetmap.org/search?" +
-        new URLSearchParams({ format: "json", limit: "1", q: query }).toString();
+    const url =
+      "https://nominatim.openstreetmap.org/search?" +
+      new URLSearchParams({ format: "json", limit: "1", q: query }).toString();
 
-      const req = https.get(
-        url,
-        { headers: { "User-Agent": "CivicSync/1.0" } },
-        (res) => {
-          let body = "";
-          res.on("data", (chunk: Buffer) => (body += chunk.toString()));
-          res.on("end", () => {
-            try {
-              const data = JSON.parse(body) as { lat: string; lon: string }[];
-              if (!data.length) return resolve(null);
-              const lat = parseFloat(data[0].lat);
-              const lng = parseFloat(data[0].lon);
-              if (isNaN(lat) || isNaN(lng)) return resolve(null);
-              resolve({ lat, lng });
-            } catch {
-              resolve(null);
-            }
-          });
-        },
-      );
+    const res = await fetch(url, {
+      headers: { "User-Agent": "CivicSync/1.0" },
+      signal: AbortSignal.timeout(5000),
+    });
 
-      req.on("error", () => resolve(null));
-      req.setTimeout(5000, () => {
-        req.destroy();
-        resolve(null);
-      });
-    } catch {
-      resolve(null);
-    }
-  });
+    if (!res.ok) return null;
+
+    const data = (await res.json()) as { lat: string; lon: string }[];
+    if (!data.length) return null;
+
+    const lat = parseFloat(data[0].lat);
+    const lng = parseFloat(data[0].lon);
+    if (isNaN(lat) || isNaN(lng)) return null;
+
+    return { lat, lng };
+  } catch {
+    // Network error, timeout, etc. — fall back to state coords
+    return null;
+  }
 }
 
 /* ─── Submit Complaint ────────────────────────────────────────────────────── */
@@ -387,6 +375,7 @@ export const getDistrictComplaints = async (
 ): Promise<void> => {
   try {
     const { districtName } = req.params;
+    const { departmentCode } = req.query;
 
     const district = await District.findOne({
       name: new RegExp(`^${districtName}$`, "i"),
@@ -397,7 +386,21 @@ export const getDistrictComplaints = async (
       return;
     }
 
-    const complaints = await Complaint.find({ district: district._id })
+    const query: any = { district: district._id };
+    
+    if (departmentCode) {
+      const department = await Department.findOne({ code: (departmentCode as string).toUpperCase() });
+      if (department) {
+        query.department = department._id;
+      }
+    }
+    
+    // Only fetch complaints from the last 10 days
+    const tenDaysAgo = new Date();
+    tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
+    query.createdAt = { $gte: tenDaysAgo };
+
+    const complaints = await Complaint.find(query)
       .select("description")
       .lean();
 
