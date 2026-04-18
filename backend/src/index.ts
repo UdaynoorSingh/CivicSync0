@@ -17,6 +17,7 @@ import helpRoutes from "./routes/helpRoutes";
 import headAdminRoutes from "./routes/headAdminRoutes";
 import notificationRoutes from "./routes/notificationRoutes";
 import { errorHandler } from "./middleware/errorHandler";
+import { startSLAEngine } from "./services/slaEscalationService";
 
 const app = express();
 const PORT = process.env.PORT ?? 5001;
@@ -61,6 +62,10 @@ app.use(errorHandler);
 
 const start = async (): Promise<void> => {
   await connectDB();
+
+  // Start the cron job engine
+  startSLAEngine();
+
   app.listen(PORT, () => {
     console.log(`🚀  CivicSync backend running on http://localhost:${PORT}`);
     console.log(`📡  Environment: ${process.env.NODE_ENV ?? "development"}`);

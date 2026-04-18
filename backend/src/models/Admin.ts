@@ -2,6 +2,7 @@ import { Schema, model, Document, Types } from "mongoose";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 export type AdminRole = "admin" | "superadmin";
+export type TierLevel = 1 | 2 | 3 | 4;
 
 /**
  * Each admin is scoped to ONE department in ONE district.
@@ -19,6 +20,9 @@ export interface IAdmin extends Document {
   department: Types.ObjectId; // ref: 'Department'
   district: Types.ObjectId; // ref: 'District'
   role: AdminRole;
+
+  tier: TierLevel;
+  supervisor: Types.ObjectId;
 
   isActive: boolean;
   lastLogin?: Date;
@@ -58,11 +62,13 @@ const adminSchema = new Schema<IAdmin>(
 
     isActive: { type: Boolean, default: true },
     lastLogin: { type: Date },
+
+    tier: {type: Number, required: true, default: 1},
+    supervisor: {type: Schema.Types.ObjectId, ref: "Admin"},
   },
   { timestamps: true },
 );
 
-// One admin per department per district (enforces the 1-admin-per-dept-per-district rule)
-adminSchema.index({ department: 1, district: 1 }, { unique: true });
+adminSchema.index({ district: 1, department: 1, tier: 1, isActive: 1 });
 
 export const Admin = model<IAdmin>("Admin", adminSchema);

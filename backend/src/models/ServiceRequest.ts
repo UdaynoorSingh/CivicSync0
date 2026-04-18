@@ -17,7 +17,8 @@ export type ServiceRequestStatus =
   | "approved"
   | "rejected"
   | "processing"
-  | "completed";
+  | "completed"
+  | "escalated";
 
 export interface IUploadedDocument {
   type: "id_proof" | "address_proof" | "property_document" | "other";
@@ -73,6 +74,9 @@ export interface IServiceRequest extends Document {
   updatedAt: Date;
 
   idempotencyKey?: string;
+
+  escalationLevel: number; // Tracks how many times it has been escalated (Default 0)
+  slaBreachTime: Date; // The exact time the ticket will breach SLA
 }
 
 const documentSchema = new Schema<IUploadedDocument>(
@@ -100,6 +104,7 @@ const srStatusEntrySchema = new Schema<ISRStatusEntry>(
         "rejected",
         "processing",
         "completed",
+        "escalated",
       ],
       required: true,
     },
@@ -167,6 +172,7 @@ const serviceRequestSchema = new Schema<IServiceRequest>(
         "rejected",
         "processing",
         "completed",
+        "escalated",
       ],
       default: "submitted",
     },
@@ -176,6 +182,9 @@ const serviceRequestSchema = new Schema<IServiceRequest>(
     completedAt: { type: Date },
     feedback: { type: Schema.Types.ObjectId, ref: "Feedback" },
     idempotencyKey: { type: String, unique: true, sparse: true },
+
+    escalationLevel: { type: Number, required: true, default: 0 },
+    slaBreachTime: { type: Date },
   },
   { timestamps: true },
 );
@@ -183,9 +192,7 @@ const serviceRequestSchema = new Schema<IServiceRequest>(
 serviceRequestSchema.index({ userId: 1, status: 1 });
 serviceRequestSchema.index({ district: 1, department: 1, status: 1 });
 serviceRequestSchema.index({ assignedAdmin: 1, status: 1 });
-serviceRequestSchema.index({ idempotencyKey: 1 });
+// serviceRequestSchema.index({ idempotencyKey: 1 });
+serviceRequestSchema.index({ status: 1, slaBreachTime: 1 });
 
-export const ServiceRequest = model<IServiceRequest>(
-  "ServiceRequest",
-  serviceRequestSchema,
-);
+export const ServiceRequest = model<IServiceRequest>("ServiceRequest", serviceRequestSchema);

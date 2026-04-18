@@ -67,6 +67,9 @@ export interface IComplaint extends Document {
   createdAt: Date;
   updatedAt: Date;
   idempotencyKey?: string;
+
+  escalationLevel: number; // Tracks how many times it has been escalated (Default 0)
+  slaBreachTime: Date; // The exact time the ticket will breach SLA
 }
 
 const statusHistorySchema = new Schema<IStatusHistoryEntry>(
@@ -148,6 +151,8 @@ const complaintSchema = new Schema<IComplaint>(
     feedback: { type: Schema.Types.ObjectId, ref: "Feedback" },
     idempotencyKey: { type: String, unique: true, sparse: true },
     
+    escalationLevel: { type: Number, required: true, default: 0 },
+    slaBreachTime: { type: Date },
   },
   { timestamps: true },
 );
@@ -156,6 +161,7 @@ complaintSchema.index({ location: "2dsphere" });
 complaintSchema.index({ district: 1, status: 1 });
 complaintSchema.index({ userId: 1, createdAt: -1 });
 complaintSchema.index({ assignedAdmin: 1, status: 1 });
-complaintSchema.index({ idempotencyKey: 1 });
+// complaintSchema.index({ idempotencyKey: 1 });
+complaintSchema.index({ status: 1, slaBreachTime: 1 });
 
 export const Complaint = model<IComplaint>("Complaint", complaintSchema);

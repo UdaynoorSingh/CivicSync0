@@ -5,6 +5,8 @@ import { Department } from "../models/Department";
 import { District } from "../models/District";
 import { generateRefNumber } from "../utils/generateRefNumber";
 import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload";
+import { calculateSLA } from "../utils/calculateSLA";
+import { Admin } from "../models";
 
 const SERVICE_CODE: Record<string, string> = {
   electricity: "ELEC",
@@ -168,10 +170,19 @@ export const submitServiceRequest = async (
 
     const referenceNumber = await generateRefNumber("SRQ", ServiceRequest);
 
+    const slaBreachTime = calculateSLA("medium"); // Assuming default medium priority for standard SRs
+    const tier1Admin = await Admin.findOne({
+      district: district._id,
+      department: department._id,
+      tier: 1,
+      isActive: true,
+    }).sort({ lastLogin: -1 });
+
     const sr = await ServiceRequest.create({
       userId: req.user!.id,
       department: department._id,
       district: district._id,
+      assignedAdmin: tier1Admin ? tier1Admin._id : undefined,
       referenceNumber,
       serviceType,
       requestType,
@@ -193,6 +204,8 @@ export const submitServiceRequest = async (
       applicationFee: 0,
       status: "submitted",
       idempotencyKey,
+      escalationLevel : 0,
+      slaBreachTime,
       statusHistory: [
         {
           status: "submitted",
