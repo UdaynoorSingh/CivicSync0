@@ -11,7 +11,6 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
-// ── Suggestion bank ──────────────────────────────────────────────────────────
 interface Suggestion {
   id: string;
   query: string;
@@ -20,103 +19,74 @@ interface Suggestion {
 }
 
 const suggestions: Suggestion[] = [
-  // Bills
   {
     id: "s1",
-    query: "How do I pay my electricity bill?",
-    answer:
-      "Go to Bills → Electricity. You can pay via UPI, Debit/Credit Card, or Net Banking. Payment is reflected within 24 hours.",
-    category: "Bills",
+    query: "Power Outage / Broken Lines",
+    answer: "DO: Unplug sensitive appliances. Stay away from fallen lines. DON'T: Try to fix utility poles yourself or assume lines are dead.",
+    category: "Electricity",
   },
   {
     id: "s2",
-    query: "How do I pay my water bill?",
-    answer:
-      "Navigate to Bills → Water and tap 'Pay Now'. Multiple payment options including GPay, PhonePe and net banking are supported.",
-    category: "Bills",
+    query: "Sparking Transformers",
+    answer: "DO: Clear the area and call the emergency hotline. DON'T: Throw water on electrical fires or stand near the transformer.",
+    category: "Electricity",
   },
   {
     id: "s3",
-    query: "View all my pending bills",
-    answer:
-      "All pending bills are shown on your dashboard and under the 'Bills' section. Overdue bills are highlighted in red.",
-    category: "Bills",
+    query: "Major Water Pipe Burst",
+    answer: "DO: Turn off your main water valve if flooding your property and report the location. DON'T: Attempt to seal high-pressure main pipes.",
+    category: "Water",
   },
-  // Complaints
   {
     id: "s4",
-    query: "How to register a complaint?",
-    answer:
-      "Tap 'Register Complaint' on the dashboard. Choose a category (water, power, road, etc.), describe the issue and optionally attach a photo.",
-    category: "Complaints",
+    query: "Contaminated / Muddy Water",
+    answer: "DO: Boil water safely before drinking. Report the affected supply zone. DON'T: Consume foul-smelling tap water directly.",
+    category: "Water",
   },
   {
     id: "s5",
-    query: "How do I track my complaint status?",
-    answer:
-      "Go to 'Track Requests' on the dashboard. You'll see real-time status — Pending (yellow), In Progress (blue), Resolved (green), Rejected (red).",
-    category: "Complaints",
+    query: "Garbage Pile-up / Dumping",
+    answer: "DO: Segregate waste properly and use covered local bins. DON'T: Burn garbage in public spaces or dump waste in street drains.",
+    category: "Sanitation",
   },
   {
     id: "s6",
-    query: "What happens after I file a complaint?",
-    answer:
-      "Your complaint is assigned a unique reference number and forwarded to the concerned department. You'll get status updates as it progresses.",
-    category: "Complaints",
+    query: "Clogged Public Sewers",
+    answer: "DO: Keep children and pets away from overflowing manholes. DON'T: Pour cooking oil or solid waste down drains to worsen the block.",
+    category: "Sanitation",
   },
-  // Services
   {
     id: "s7",
-    query: "How to apply for a new electricity connection?",
-    answer:
-      "Go to Services → Apply for Service. Select 'Electricity', fill in your address details and submit. Processing takes 7–14 working days.",
-    category: "Services",
+    query: "Deep Potholes / Broken Roads",
+    answer: "DO: Drive slowly in affected areas and report the specific street landmark. DON'T: Fill potholes with loose debris or trash.",
+    category: "Roads",
   },
   {
     id: "s8",
-    query: "How to apply for a new water connection?",
-    answer:
-      "Navigate to Services → Apply for Service → Water Connection. Fill in the form and submit required documents.",
-    category: "Services",
+    query: "Streetlight Malfunction",
+    answer: "DO: Note the pole number and report it to the municipal department. DON'T: Attempt to pry open the light's control box.",
+    category: "Roads",
   },
-  // Emergency
   {
     id: "s9",
-    query: "Emergency contacts",
-    answer:
-      "Police: 100 | Ambulance: 108 | Fire: 101 | Citizen Helpline: 1800-11-1000 | Electricity Board: 1912 | Water Supply: 1916.",
+    query: "Stray Animal Aggression",
+    answer: "DO: Slowly back away and call animal control or emergency services. DON'T: Provoke, throw stones, or run suddenly from aggressive strays.",
     category: "Emergency",
   },
   {
     id: "s10",
-    query: "How to contact the municipal office?",
-    answer:
-      "Call 1800-11-3377 or email mc@chandigarh.gov.in. Office hours are 9 AM – 5 PM on working days.",
+    query: "Reporting a Gas Leak",
+    answer: "DO: Open all windows, evacuate immediately, and call emergency services. DON'T: Turn electrical switches on/off or use lighters nearby.",
     category: "Emergency",
-  },
-  // Profile
-  {
-    id: "s11",
-    query: "How do I update my profile?",
-    answer:
-      "Tap the Settings icon on the top-right of the dashboard. From there you can update your name, phone, and address.",
-    category: "Profile",
-  },
-  {
-    id: "s12",
-    query: "How do I view my notifications?",
-    answer:
-      "Tap the Bell icon on the top-right. All alerts, reminders, and announcements are listed there.",
-    category: "Profile",
   },
 ];
 
 const CATEGORY_COLORS: Record<string, string> = {
-  Bills: "bg-amber-100 text-amber-700",
-  Complaints: "bg-rose-100 text-rose-700",
-  Services: "bg-blue-100 text-blue-700",
+  Electricity: "bg-yellow-100 text-yellow-800",
+  Water: "bg-blue-100 text-blue-700",
+  Sanitation: "bg-green-100 text-green-700",
+  Roads: "bg-slate-100 text-slate-700",
   Emergency: "bg-red-100 text-red-700",
-  Profile: "bg-violet-100 text-violet-700",
 };
 
 interface QuickQueryPopupProps {

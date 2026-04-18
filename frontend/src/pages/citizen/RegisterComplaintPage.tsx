@@ -427,7 +427,7 @@ export default function RegisterComplaintPage() {
 
       if (complaintScope === "locality") {
         try {
-          const prevCompsRes = await api.getDistrictComplaints(state);
+          const prevCompsRes = await api.getDistrictComplaints(state, selectedDept.code);
           const prevComplaints = prevCompsRes.success
             ? prevCompsRes.descriptions
             : [];

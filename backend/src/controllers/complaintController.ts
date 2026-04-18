@@ -357,6 +357,7 @@ export const getDistrictComplaints = async (
 ): Promise<void> => {
   try {
     const { districtName } = req.params;
+    const { departmentCode } = req.query;
 
     const district = await District.findOne({
       name: new RegExp(`^${districtName}$`, "i"),
@@ -367,7 +368,21 @@ export const getDistrictComplaints = async (
       return;
     }
 
-    const complaints = await Complaint.find({ district: district._id })
+    const query: any = { district: district._id };
+    
+    if (departmentCode) {
+      const department = await Department.findOne({ code: (departmentCode as string).toUpperCase() });
+      if (department) {
+        query.department = department._id;
+      }
+    }
+    
+    // Only fetch complaints from the last 10 days
+    const tenDaysAgo = new Date();
+    tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
+    query.createdAt = { $gte: tenDaysAgo };
+
+    const complaints = await Complaint.find(query)
       .select("description")
       .lean();
 
