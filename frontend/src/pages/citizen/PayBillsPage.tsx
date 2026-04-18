@@ -1,24 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import MascotGuide from "../../components/shared/MascotGuide";
 import type { MascotEmotion } from "../../components/shared/MascotGuide";
 import { ArrowLeft, Zap, Droplets, Flame, Trash2 } from "lucide-react";
 import { useTranslation } from "../../lib/i18n";
 import { getMyBills, type CitizenBill } from "../../lib/api";
-import {
-  parseDepartmentSlugFromState,
-  slugToBillCategory,
-  departmentTitleI18nKey,
-} from "../../lib/departmentContext";
 
-type Category =
-  | "all"
-  | "electricity"
-  | "water"
-  | "gas"
-  | "waste"
-  | "sanitation";
+type Category = "all" | "electricity" | "water" | "gas" | "waste";
 
 const catConfig: Record<
   Exclude<Category, "all">,
@@ -32,11 +21,6 @@ const catConfig: Record<
   water: { icon: Droplets, color: "text-blue-600", bg: "bg-blue-50" },
   gas: { icon: Flame, color: "text-orange-600", bg: "bg-orange-50" },
   waste: { icon: Trash2, color: "text-green-600", bg: "bg-green-50" },
-  sanitation: {
-    icon: Trash2,
-    color: "text-emerald-600",
-    bg: "bg-emerald-50",
-  },
 };
 
 interface UIBill {
@@ -59,7 +43,6 @@ const mapDepartmentToCategory = (
   if (code === "ELEC") return "electricity";
   if (code === "WATER") return "water";
   if (code === "GAS") return "gas";
-  if (code === "SANITATION") return "sanitation";
   return "waste";
 };
 
@@ -83,22 +66,10 @@ const mapBillToUI = (bill: CitizenBill): UIBill => ({
 export default function PayBillsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const location = useLocation();
-  const departmentSlug = parseDepartmentSlugFromState(location.state);
-  const lockedCategory = departmentSlug
-    ? slugToBillCategory(departmentSlug)
-    : null;
-
-  const [active, setActive] = useState<Category>(
-    lockedCategory ?? "all",
-  );
+  const [active, setActive] = useState<Category>("all");
   const [bills, setBills] = useState<UIBill[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (lockedCategory) setActive(lockedCategory);
-  }, [lockedCategory]);
 
   useEffect(() => {
     void (async () => {
@@ -121,17 +92,13 @@ export default function PayBillsPage() {
     [active, bills],
   );
 
-  const tabs: Category[] =
-    departmentSlug && lockedCategory
-      ? [lockedCategory]
-      : ["all", "electricity", "water", "gas", "waste", "sanitation"];
+  const tabs: Category[] = ["all", "electricity", "water", "gas", "waste"];
   const tabLabel: Record<Category, string> = {
     all: t("allBills"),
     electricity: t("electricity"),
     water: t("water"),
     gas: t("gas"),
     waste: t("waste"),
-    sanitation: t("sanitation"),
   };
 
   return (
@@ -146,31 +113,18 @@ export default function PayBillsPage() {
         <h1 className="text-xl font-bold text-gray-800">{t("pendingBills")}</h1>
       </div>
 
-      {departmentSlug && (
-        <div className="mb-3 rounded-xl border border-[#1E3A5F]/20 bg-white px-3 py-2.5 text-sm text-[#1E3A5F]">
-          {t("departmentDataScope")}{" "}
-          <span className="font-bold">
-            {t(departmentTitleI18nKey(departmentSlug))}
-          </span>
-        </div>
-      )}
-
       <div className="flex gap-2 overflow-x-auto pb-1 mb-4 scrollbar-none">
         {tabs.map((tab) => (
           <button
             key={tab}
-            type="button"
-            onClick={() => !departmentSlug && setActive(tab)}
-            disabled={!!departmentSlug}
+            onClick={() => setActive(tab)}
             className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
               active === tab
                 ? "bg-[#1E3A5F] text-white shadow"
                 : "bg-white text-gray-600 hover:bg-gray-100"
-            } ${departmentSlug ? "opacity-90 cursor-default" : ""}`}
+            }`}
           >
-            {departmentSlug
-              ? t(departmentTitleI18nKey(departmentSlug))
-              : tabLabel[tab]}
+            {tabLabel[tab]}
           </button>
         ))}
       </div>
@@ -257,12 +211,7 @@ export default function PayBillsPage() {
                   Rs {bill.amount.toLocaleString("en-IN")}
                 </p>
                 <button
-                  type="button"
-                  onClick={() =>
-                    navigate(`/citizen/bills/${bill.id}`, {
-                      state: location.state,
-                    })
-                  }
+                  onClick={() => navigate(`/citizen/bills/${bill.id}`)}
                   className="mt-1 text-xs px-3 py-1.5 rounded-lg bg-[#1E3A5F] text-white font-semibold hover:bg-[#163050] transition-colors"
                 >
                   {t("payNow")}

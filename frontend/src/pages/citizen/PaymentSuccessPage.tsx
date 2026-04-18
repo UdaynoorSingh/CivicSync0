@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { CheckCircle, FileText, MessageSquare, Home } from "lucide-react";
+import { CheckCircle, Download, MessageSquare, Home } from "lucide-react";
 import MascotGuide from "../../components/shared/MascotGuide";
-import ReceiptOptionsModal from "../../components/citizen/ReceiptOptionsModal";
 import { useTranslation } from "../../lib/i18n";
-import { getPaymentById, type PaymentSummary } from "../../lib/api";
+import {
+  downloadPaymentReceipt,
+  getPaymentById,
+  type PaymentSummary,
+} from "../../lib/api";
 
 interface SuccessBillState {
   category: "electricity" | "water" | "gas" | "waste";
@@ -27,7 +30,8 @@ export default function PaymentSuccessPage() {
   const [payment, setPayment] = useState<PaymentSummary | undefined>(
     locationState.payment,
   );
-  const [receiptOpen, setReceiptOpen] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState("");
   const bill = locationState.bill;
 
   useEffect(() => {
@@ -132,22 +136,33 @@ export default function PaymentSuccessPage() {
         className="w-full max-w-sm space-y-3"
       >
         <button
-          type="button"
           onClick={() => {
             if (!payment?.id) return;
-            setReceiptOpen(true);
+            setDownloadError("");
+            setDownloading(true);
+            void (async () => {
+              try {
+                await downloadPaymentReceipt(payment.id);
+              } catch (err) {
+                setDownloadError(
+                  err instanceof Error
+                    ? err.message
+                    : "Failed to download receipt.",
+                );
+              } finally {
+                setDownloading(false);
+              }
+            })();
           }}
-          disabled={!payment?.id}
+          disabled={!payment?.id || downloading}
           className="w-full py-3 rounded-xl border-2 border-[#1E3A5F] text-[#1E3A5F] font-semibold flex items-center gap-2 justify-center hover:bg-blue-50 transition-colors disabled:opacity-50"
         >
-          <FileText size={18} /> {t("receiptOptionsTitle")}
+          <Download size={18} />{" "}
+          {downloading ? "Downloading..." : t("downloadReceipt")}
         </button>
-        <ReceiptOptionsModal
-          open={receiptOpen}
-          onClose={() => setReceiptOpen(false)}
-          paymentId={payment?.id ?? ""}
-          receiptNumber={payment?.receiptNumber}
-        />
+        {downloadError ? (
+          <p className="text-red-600 text-xs text-center">{downloadError}</p>
+        ) : null}
         <button className="w-full py-3 rounded-xl border-2 border-gray-200 text-gray-600 font-semibold flex items-center gap-2 justify-center hover:bg-gray-50 transition-colors">
           <MessageSquare size={18} /> {t("sendSms")}
         </button>

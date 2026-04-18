@@ -5,7 +5,6 @@ import { ShieldCheck } from "lucide-react";
 import { useSessionStore } from "../../store/sessionStore";
 import { useTranslation } from "../../lib/i18n";
 import * as api from "../../lib/api";
-import type { PostAuthRedirect } from "../../lib/authRedirect";
 
 const OTP_LENGTH = 6;
 const RESEND_COOLDOWN = 30;
@@ -14,8 +13,6 @@ export default function OTPPage() {
   const navigate = useNavigate();
   const { state } = useLocation();
   const phone = (state as { phone?: string })?.phone ?? "";
-  const postAuthRedirect = (state as { postAuthRedirect?: PostAuthRedirect })
-    ?.postAuthRedirect;
   const { setCitizenSession } = useSessionStore();
   const { t } = useTranslation();
 
@@ -102,14 +99,7 @@ export default function OTPPage() {
         createdAt: (user as any).createdAt,
       });
       
-      if (postAuthRedirect?.path) {
-        navigate(postAuthRedirect.path, {
-          replace: true,
-          state: postAuthRedirect.state,
-        });
-      } else {
-        navigate("/citizen", { replace: true });
-      }
+      navigate("/citizen", { replace: true });
       
     } catch (err: unknown) {
       const code = typeof err === "object" && err !== null && "code" in err
@@ -127,10 +117,7 @@ export default function OTPPage() {
   };
 
   const handleResend = () => {
-    navigate("/login", {
-      replace: true,
-      state: postAuthRedirect ? { postAuthRedirect } : undefined,
-    });
+    navigate("/login", { replace: true });
   };
 
   return (
@@ -220,12 +207,7 @@ export default function OTPPage() {
       </motion.div>
 
       <button
-        type="button"
-        onClick={() =>
-          navigate("/login", {
-            state: postAuthRedirect ? { postAuthRedirect } : undefined,
-          })
-        }
+        onClick={() => navigate("/login")}
         className="text-sm text-gray-500 hover:text-gray-700 underline"
       >
         {t("changeMobile")}

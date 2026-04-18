@@ -16,7 +16,7 @@ export default function LanguageSelectionPage() {
 
   const handleSelect = (code: Language) => {
     setLanguage(code);
-    setTimeout(() => navigate("/citizen"), 350);
+    setTimeout(() => navigate("/login"), 350);
   };
 
   return (

@@ -1,10 +1,8 @@
-import { useState, useMemo, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Smartphone, Lock, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { useSessionStore } from "../../store/sessionStore";
-import { isCitizenUser } from "../../lib/authRedirect";
-import type { PostAuthRedirect } from "../../lib/authRedirect";
 import { useTranslation } from "../../lib/i18n";
 import * as api from "../../lib/api";
 
@@ -37,35 +35,9 @@ export default function LoginPage() {
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { setAdminSession, isAuthenticated, role: sessionRole, sessionReady } =
-    useSessionStore();
+  const { setAdminSession, loginGuest } = useSessionStore();
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const location = useLocation();
-  const postAuthRedirect = (
-    location.state as { postAuthRedirect?: PostAuthRedirect } | null
-  )?.postAuthRedirect;
-
-  useEffect(() => {
-    if (!sessionReady) return;
-    if (isCitizenUser(isAuthenticated, sessionRole)) {
-      if (postAuthRedirect?.path) {
-        navigate(postAuthRedirect.path, {
-          replace: true,
-          state: postAuthRedirect.state,
-        });
-      } else {
-        navigate("/citizen", { replace: true });
-      }
-    }
-  }, [
-    sessionReady,
-    isAuthenticated,
-    sessionRole,
-    navigate,
-    postAuthRedirect?.path,
-    postAuthRedirect?.state,
-  ]);
 
   const formattedPhone = useMemo(() => formatIndianPhone(phone), [phone]);
 
@@ -96,9 +68,7 @@ export default function LoginPage() {
       
       window.confirmationResult = confirmation;
       
-      navigate("/otp", {
-        state: { phone: formattedPhone, postAuthRedirect },
-      });
+      navigate("/otp", { state: { phone: formattedPhone } });
       
     } catch (err: unknown) {
       const code = typeof err === "object" && err !== null && "code" in err
@@ -281,8 +251,10 @@ export default function LoginPage() {
             )}
             {role === "citizen" && (
               <button
-                type="button"
-                onClick={() => navigate("/citizen")}
+                onClick={() => {
+                  loginGuest();
+                  navigate("/guest");
+                }}
                 className="w-full mt-3 py-2 text-sm text-gray-500 hover:text-gray-700"
               >
                 Continue as Guest

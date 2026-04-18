@@ -1,7 +1,6 @@
-import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useEffect } from "react";
 import { useSessionStore } from "./store/sessionStore";
-import type { PostAuthRedirect } from "./lib/authRedirect";
 
 import KioskLayout from "./layouts/KioskLayout";
 import AdminLayout from "./layouts/AdminLayout";
@@ -18,7 +17,6 @@ import HeadAdminFirebaseLoginPage from "./pages/onboarding/HeadAdminFirebaseLogi
 import GuestAccessPage from "./pages/onboarding/GuestAccessPage";
 
 import CitizenDashboard from "./pages/citizen/CitizenDashboard";
-import DepartmentServicesPage from "./pages/citizen/DepartmentServicesPage";
 import PayBillsPage from "./pages/citizen/PayBillsPage";
 import BillDetailPage from "./pages/citizen/BillDetailPage";
 import PaymentSuccessPage from "./pages/citizen/PaymentSuccessPage";
@@ -44,30 +42,13 @@ import HeadAdminFeedbackPage from "./pages/admin/HeadAdminFeedbackPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import GuestMap from "./components/guest/GuestMap";
 
-/** Kiosk shell: admins are redirected; citizens and visitors see the citizen layout. */
-function CitizenKioskGate() {
-  const { sessionReady, role } = useSessionStore();
-  if (!sessionReady) return <div className="min-h-screen bg-gray-100" />;
-  if (role === "admin" || role === "superadmin")
-    return <Navigate to="/admin" replace />;
-  if (role === "head_admin") return <Navigate to="/head-admin" replace />;
-  return <KioskLayout />;
-}
-
-function RequireCitizenAuth() {
+function CitizenRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, sessionReady, role } = useSessionStore();
-  const loc = useLocation();
   if (!sessionReady) return <div className="min-h-screen bg-gray-100" />;
-  if (isAuthenticated && role === "citizen") return <Outlet />;
-  const postAuthRedirect: PostAuthRedirect = {
-    path: `${loc.pathname}${loc.search}`,
-    ...(loc.state && typeof loc.state === "object"
-      ? { state: loc.state as Record<string, unknown> }
-      : {}),
-  };
-  return (
-    <Navigate to="/login" replace state={{ postAuthRedirect }} />
-  );
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (role === "admin" || role === "superadmin") return <Navigate to="/admin" replace />;
+  if (role === "head_admin") return <Navigate to="/head-admin" replace />;
+  return <>{children}</>;
 }
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
@@ -113,44 +94,26 @@ export default function App() {
           <Route path="/guest/map" element={<GuestMap />} />
         </Route>
 
-        <Route element={<CitizenKioskGate />}>
+        <Route
+          element={
+            <CitizenRoute>
+              <KioskLayout />
+            </CitizenRoute>
+          }
+        >
           <Route path="/citizen" element={<CitizenDashboard />} />
+          <Route path="/citizen/bills" element={<PayBillsPage />} />
+          <Route path="/citizen/bills/:id" element={<BillDetailPage />} />
+          <Route path="/citizen/bills/success" element={<PaymentSuccessPage />} />
+          <Route path="/citizen/complaint/new" element={<RegisterComplaintPage />} />
+          <Route path="/citizen/complaint/confirm" element={<ComplaintConfirmationPage />} />
+          <Route path="/citizen/service/new" element={<NewServiceRequestPage />} />
+          <Route path="/citizen/service/confirm" element={<ServiceRequestConfirmPage />} />
+          <Route path="/citizen/track" element={<TrackStatusPage />} />
+          <Route path="/citizen/map" element={<ComplaintMapPage />} />
           <Route path="/citizen/help" element={<HelpSupportPage />} />
+          <Route path="/citizen/notifications" element={<NotificationsPage />} />
           <Route path="/citizen/profile" element={<ProfilePage />} />
-          <Route
-            path="/citizen/department/:slug"
-            element={<DepartmentServicesPage />}
-          />
-          <Route element={<RequireCitizenAuth />}>
-            <Route path="/citizen/bills" element={<PayBillsPage />} />
-            <Route path="/citizen/bills/:id" element={<BillDetailPage />} />
-            <Route
-              path="/citizen/bills/success"
-              element={<PaymentSuccessPage />}
-            />
-            <Route
-              path="/citizen/complaint/new"
-              element={<RegisterComplaintPage />}
-            />
-            <Route
-              path="/citizen/complaint/confirm"
-              element={<ComplaintConfirmationPage />}
-            />
-            <Route
-              path="/citizen/service/new"
-              element={<NewServiceRequestPage />}
-            />
-            <Route
-              path="/citizen/service/confirm"
-              element={<ServiceRequestConfirmPage />}
-            />
-            <Route path="/citizen/track" element={<TrackStatusPage />} />
-            <Route path="/citizen/map" element={<ComplaintMapPage />} />
-            <Route
-              path="/citizen/notifications"
-              element={<NotificationsPage />}
-            />
-          </Route>
         </Route>
 
         <Route

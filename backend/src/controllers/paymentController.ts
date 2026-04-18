@@ -11,78 +11,6 @@ import {
   getRazorpayClient,
   getRazorpayCredentials,
 } from "../config/razorpay";
-import { sendReceiptPdfEmail } from "../utils/mail";
-
-type CitizenReceiptPdfResult =
-  | {
-      ok: true;
-      pdfBuffer: Buffer;
-      filename: string;
-      receiptNumber: string;
-    }
-  | { ok: false; status: number; message: string };
-
-async function loadCitizenReceiptPdf(
-  paymentId: string,
-  userId: string,
-): Promise<CitizenReceiptPdfResult> {
-  if (!isValidObjectId(paymentId)) {
-    return { ok: false, status: 400, message: "Invalid payment id." };
-  }
-
-  const payment = await Payment.findOne({
-    _id: paymentId,
-    userId,
-  })
-    .populate("billId", "billNumber dueDate")
-    .populate("serviceRequestId", "referenceNumber serviceType")
-    .lean();
-
-  if (!payment) {
-    return { ok: false, status: 404, message: "Payment not found." };
-  }
-
-  if (payment.status !== "success") {
-    return {
-      ok: false,
-      status: 400,
-      message: "Receipt is available after successful payment only.",
-    };
-  }
-
-  const referenceLabel =
-    payment.paymentFor === "bill" ? "Bill Number:" : "Service Request Ref:";
-  const referenceValue =
-    payment.paymentFor === "bill"
-      ? String(
-          (payment.billId as { billNumber?: string } | null)?.billNumber ??
-            "N/A",
-        )
-      : String(
-          (payment.serviceRequestId as { referenceNumber?: string } | null)
-            ?.referenceNumber ?? "N/A",
-        );
-
-  const pdfBuffer = await generateReceiptPdf({
-    receiptNumber: payment.receiptNumber,
-    paymentId: payment._id.toString(),
-    paymentFor: payment.paymentFor,
-    amount: payment.amount,
-    method: payment.method,
-    status: payment.status,
-    paidAt: payment.paidAt,
-    referenceLabel,
-    referenceValue,
-    userId,
-  });
-
-  return {
-    ok: true,
-    pdfBuffer,
-    filename: `${payment.receiptNumber}.pdf`,
-    receiptNumber: payment.receiptNumber,
-  };
-}
 
 const normalizeMethod = (method?: string): PaymentMethod | undefined => {
   if (method === "upi" || method === "card" || method === "netbanking") {
@@ -618,16 +546,8 @@ export const getMyPayments = async (
   try {
     const payments = await Payment.find({ userId: req.user!.id })
       .sort({ createdAt: -1 })
-      .populate({
-        path: "billId",
-        select: "billNumber amount dueDate status department",
-        populate: { path: "department", select: "name code" },
-      })
-      .populate({
-        path: "serviceRequestId",
-        select: "referenceNumber serviceType status department",
-        populate: { path: "department", select: "name code" },
-      })
+      .populate("billId", "billNumber amount dueDate status")
+      .populate("serviceRequestId", "referenceNumber serviceType status")
       .lean();
 
     res.status(200).json({ success: true, payments });
@@ -672,88 +592,62 @@ export const downloadPaymentReceipt = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const result = await loadCitizenReceiptPdf(
-      String(req.params.id),
-      String(req.user!.id),
-    );
-    if (!result.ok) {
-      res.status(result.status).json({ success: false, message: result.message });
+    if (!isValidObjectId(req.params.id)) {
+      res.status(400).json({ success: false, message: "Invalid payment id." });
       return;
     }
 
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename=\"${result.filename}\"`,
-    );
-    res.setHeader("Content-Length", String(result.pdfBuffer.length));
-    res.status(200).send(result.pdfBuffer);
-  } catch (err) {
-    next(err);
-  }
-};
+    const payment = await Payment.findOne({
+      _id: req.params.id,
+      userId: req.user!.id,
+    })
+      .populate("billId", "billNumber dueDate")
+      .populate("serviceRequestId", "referenceNumber serviceType")
+      .lean();
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
-
-export const sendPaymentReceiptEmail = async (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): Promise<void> => {
-  try {
-    const { email } = req.body as { email?: string };
-    if (!email || typeof email !== "string") {
-      res.status(400).json({
-        success: false,
-        message: "Email address is required.",
-      });
-      return;
-    }
-    const to = email.trim().toLowerCase();
-    if (!EMAIL_RE.test(to)) {
-      res.status(400).json({
-        success: false,
-        message: "Please enter a valid email address.",
-      });
+    if (!payment) {
+      res.status(404).json({ success: false, message: "Payment not found." });
       return;
     }
 
-    const result = await loadCitizenReceiptPdf(
-      String(req.params.id),
-      String(req.user!.id),
-    );
-    if (!result.ok) {
-      res.status(result.status).json({ success: false, message: result.message });
+    if (payment.status !== "success") {
+      res
+        .status(400)
+        .json({ success: false, message: "Receipt is available after successful payment only." });
       return;
     }
 
-    try {
-      await sendReceiptPdfEmail({
-        to,
-        receiptNumber: result.receiptNumber,
-        pdfBuffer: result.pdfBuffer,
-        filename: result.filename,
-      });
-    } catch (err: unknown) {
-      const code =
-        err && typeof err === "object" && "code" in err
-          ? String((err as { code?: string }).code)
-          : "";
-      if (code === "MAIL_NOT_CONFIGURED") {
-        res.status(503).json({
-          success: false,
-          message:
-            "Sending receipts by email is not enabled. Add GMAIL_USER and GMAIL_PASSWORD to the server .env (Gmail App Password recommended).",
-        });
-        return;
-      }
-      throw err;
-    }
+    const referenceLabel =
+      payment.paymentFor === "bill" ? "Bill Number:" : "Service Request Ref:";
+    const referenceValue =
+      payment.paymentFor === "bill"
+        ? String(
+            (payment.billId as { billNumber?: string } | null)?.billNumber ??
+              "N/A",
+          )
+        : String(
+            (payment.serviceRequestId as { referenceNumber?: string } | null)
+              ?.referenceNumber ?? "N/A",
+          );
 
-    res.status(200).json({
-      success: true,
-      message: `Receipt has been sent to ${to}.`,
+    const pdfBuffer = await generateReceiptPdf({
+      receiptNumber: payment.receiptNumber,
+      paymentId: payment._id.toString(),
+      paymentFor: payment.paymentFor,
+      amount: payment.amount,
+      method: payment.method,
+      status: payment.status,
+      paidAt: payment.paidAt,
+      referenceLabel,
+      referenceValue,
+      userId: req.user!.id,
     });
+
+    const filename = `${payment.receiptNumber}.pdf`;
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename=\"${filename}\"`);
+    res.setHeader("Content-Length", String(pdfBuffer.length));
+    res.status(200).send(pdfBuffer);
   } catch (err) {
     next(err);
   }
