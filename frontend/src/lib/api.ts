@@ -221,6 +221,8 @@ export const createDepartmentAdmin = (payload: {
   username: string;
   password: string;
   name?: string;
+  tier: number;         // Added tier
+  supervisor?: string;  // Added optional supervisor
 }) =>
   request<{
     success: boolean;
@@ -236,6 +238,31 @@ export const removeDepartmentAdmin = (adminId: string) =>
     `/admin/head-admin/department-admins/${adminId}`,
     { method: "DELETE" },
   );
+
+export const getPossibleSupervisors = (params: {
+  departmentId: string;
+  districtId: string;
+  tier: number;
+}) => {
+  const query = new URLSearchParams({
+    departmentId: params.departmentId,
+    districtId: params.districtId,
+    tier: params.tier.toString(),
+  }).toString();
+
+  return request<{
+    success: boolean;
+    supervisors: Array<{
+      _id: string;
+      name: string;
+      username: string;
+      email: string;
+      tier: number;
+    }>;
+  }>(`/admin/head-admin/supervisors?${query}`, {
+    method: "GET",
+  });
+};
 
 export const getHeadAdminFeedbacks = (page = 1) =>
   request<{

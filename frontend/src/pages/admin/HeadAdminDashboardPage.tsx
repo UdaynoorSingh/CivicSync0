@@ -8,7 +8,6 @@ import type {
 } from "../../lib/api";
 import { INDIAN_STATES } from "../../lib/indianStates";
 
-
 export default function HeadAdminDashboardPage() {
   const [departments, setDepartments] = useState<HeadAdminDepartment[]>([]);
   const [admins, setAdmins] = useState<HeadAdminDepartmentAdmin[]>([]);
@@ -18,6 +17,12 @@ export default function HeadAdminDashboardPage() {
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  
+  // New State for Tier and Supervisor
+  const [tier, setTier] = useState<number>(1);
+  const [supervisor, setSupervisor] = useState<string>("");
+  const [possibleSupervisors, setPossibleSupervisors] = useState<any[]>([]);
+  const [loadingSupervisors, setLoadingSupervisors] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -51,33 +56,61 @@ export default function HeadAdminDashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Auto-generate username & password when state or department changes
+  // Auto-generate username & password when state, department, or tier changes
   useEffect(() => {
     if (departmentId && selectedState) {
       const dept = departments.find((d) => d._id === departmentId);
       if (dept) {
         const dName = dept.name.split(" ")[0].toLowerCase().replace(/[^a-z0-9]/g, "");
         const sName = selectedState.split(" ")[0].toLowerCase().replace(/[^a-z0-9]/g, "");
-        setUsername(`${sName}_${dName}`);
+        // Appended tier to username to ensure uniqueness across tiers
+        setUsername(`${sName}_${dName}_t${tier}`);
         setPassword(`${sName}_${dName}_123`);
-        setName(`${selectedState} ${dept.name} Admin`);
+        setName(`${selectedState} ${dept.name} Admin (Tier ${tier})`);
       }
     } else {
       setUsername("");
       setPassword("");
       setName("");
     }
-  }, [departmentId, selectedState, departments]);
+  }, [departmentId, selectedState, departments, tier]);
 
-  const adminsByKey = useMemo(() => {
-    const map = new Map<string, HeadAdminDepartmentAdmin>();
-    admins.forEach((admin) => {
-      if (admin.department?._id && admin.district?.name) {
-        map.set(`${admin.department._id}_${admin.district.name}`, admin);
+  // Extract the district ID for the selected state if it exists in our admins list
+  const currentDistrictId = useMemo(() => {
+    const adminInState = admins.find(a => a.district?.name === selectedState);
+    return adminInState?.district?._id || "";
+  }, [admins, selectedState]);
+
+  // Fetch possible supervisors when department, state, or tier changes
+  useEffect(() => {
+    const fetchSupervisors = async () => {
+      // If we don't have a district ID yet (meaning no admins exist in this state), 
+      // or if they are Tier 4 (highest level), there are no supervisors available.
+      if (!departmentId || !currentDistrictId || tier >= 4) {
+        setPossibleSupervisors([]);
+        setSupervisor("");
+        return;
       }
-    });
-    return map;
-  }, [admins]);
+
+      setLoadingSupervisors(true);
+      try {
+        const res = await api.getPossibleSupervisors({
+          departmentId,
+          districtId: currentDistrictId,
+          tier,
+        });
+        setPossibleSupervisors(res.supervisors || []);
+        setSupervisor(""); // Reset selection when list updates
+      } catch (err) {
+        console.error("Failed to fetch supervisors:", err);
+        setPossibleSupervisors([]);
+      } finally {
+        setLoadingSupervisors(false);
+      }
+    };
+
+    void fetchSupervisors();
+  }, [departmentId, currentDistrictId, tier]);
 
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault();
@@ -97,6 +130,8 @@ export default function HeadAdminDashboardPage() {
         username: username.trim(),
         password,
         name: name.trim() || undefined,
+        tier,
+        supervisor: supervisor || undefined,
       });
       setMessage(res.message);
       await load();
@@ -164,11 +199,41 @@ export default function HeadAdminDashboardPage() {
             ))}
           </select>
 
-          {departmentId && selectedState && adminsByKey.has(`${departmentId}_${selectedState}`) && (
-            <p className="mb-3 text-xs text-amber-700 bg-amber-50 rounded p-2">
-              This department already has an active admin in this state.
-            </p>
-          )}
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">Tier Level</label>
+              <select
+                value={tier}
+                onChange={(e) => setTier(Number(e.target.value))}
+                disabled={loading || submitting}
+                className="w-full border rounded-lg px-3 py-2 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-300 outline-none"
+              >
+                <option value={1}>Tier 1</option>
+                <option value={2}>Tier 2</option>
+                <option value={3}>Tier 3</option>
+                <option value={4}>Tier 4</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">
+                Supervisor {loadingSupervisors && <Loader2 className="inline animate-spin ml-1" size={12} />}
+              </label>
+              <select
+                value={supervisor}
+                onChange={(e) => setSupervisor(e.target.value)}
+                disabled={loading || submitting || tier >= 4 || possibleSupervisors.length === 0}
+                className="w-full border rounded-lg px-3 py-2 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-300 outline-none disabled:opacity-60"
+              >
+                <option value="">No Supervisor (Auto-escalate)</option>
+                {possibleSupervisors.map((sup) => (
+                  <option key={sup._id} value={sup._id}>
+                    {sup.name} (Tier {sup.tier})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
 
           <label className="block text-sm text-gray-600 mb-1">Admin Name</label>
           <input
@@ -226,8 +291,8 @@ export default function HeadAdminDashboardPage() {
                   <tr className="text-left text-xs uppercase text-gray-500 border-b">
                     <th className="py-2">Department</th>
                     <th className="py-2">State</th>
+                    <th className="py-2">Tier</th>
                     <th className="py-2">Username</th>
-                    <th className="py-2">Created</th>
                     <th className="py-2">Action</th>
                   </tr>
                 </thead>
@@ -238,10 +303,9 @@ export default function HeadAdminDashboardPage() {
                         {admin.department?.name} ({admin.department?.code})
                       </td>
                       <td className="py-3 text-gray-600 font-medium">{admin.district?.name}</td>
+                      {/* Added TS ignore if type definition doesn't include tier yet */}
+                      <td className="py-3 text-blue-600 font-semibold">Tier {(admin as any).tier || 1}</td>
                       <td className="py-3 text-gray-600">{admin.username}</td>
-                      <td className="py-3 text-gray-600">
-                        {new Date(admin.createdAt).toLocaleDateString("en-IN")}
-                      </td>
                       <td className="py-3">
                         <button
                           onClick={() => void handleRemove(admin._id)}

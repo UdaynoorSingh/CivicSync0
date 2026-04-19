@@ -9,6 +9,7 @@ import {
   setTokenCookie,
   signToken,
 } from "../utils/generateToken";
+import { TierLevel } from "../models/Admin";
 
 type HeadAdminOtpRecord = {
   otpHash: string;
@@ -340,12 +341,14 @@ export const createDepartmentAdmin = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { departmentId, stateName, username, password, name } = req.body as {
+    const { departmentId, stateName, username, password, name, tier=1, supervisor } = req.body as {
       departmentId?: string;
       stateName?: string;
       username?: string;
       password?: string;
       name?: string;
+      tier: TierLevel;
+      supervisor?: string;
     };
 
     if (!departmentId || !stateName || !username || !password) {
@@ -400,25 +403,23 @@ export const createDepartmentAdmin = async (
       district = created.toObject();
     }
 
-    const existingForScope = await Admin.findOne({
-      department: department._id,
-      district: district._id,
-      role: "admin",
-    });
-    if (existingForScope?.isActive) {
-      res.status(409).json({
-        success: false,
-        message: "An active admin already exists for this department.",
-      });
-      return;
+    if (supervisor) {
+      if (!isValidObjectId(supervisor)) {
+        res.status(400).json({ success: false, message: "Invalid supervisor ID format." });
+        return;
+      }
+      const supervisorExists = await Admin.findById(supervisor).lean();
+      if (!supervisorExists) {
+        res.status(404).json({ success: false, message: "Supervisor not found." });
+        return;
+      }
     }
 
     const existingUsername = await Admin.findOne({
       username: normalizedUsername,
     }).lean();
     if (
-      existingUsername &&
-      existingUsername._id.toString() !== existingForScope?._id.toString()
+      existingUsername
     ) {
       res.status(409).json({
         success: false,
@@ -431,27 +432,19 @@ export const createDepartmentAdmin = async (
     const email = `${normalizedUsername}@civicsync.local`;
     let adminId: string;
 
-    if (existingForScope) {
-      existingForScope.name = name?.trim() || `${department.name} Admin`;
-      existingForScope.username = normalizedUsername;
-      existingForScope.email = email;
-      existingForScope.password = hashed;
-      existingForScope.isActive = true;
-      await existingForScope.save();
-      adminId = existingForScope._id.toString();
-    } else {
-      const admin = await Admin.create({
-        name: name?.trim() || `${department.name} Admin`,
-        username: normalizedUsername,
-        email,
-        password: hashed,
-        department: department._id,
-        district: district._id,
-        role: "admin",
-        isActive: true,
-      });
-      adminId = admin._id.toString();
-    }
+    const admin = await Admin.create({
+      name: name?.trim() || `${department.name} Admin`,
+      username: normalizedUsername,
+      email,
+      password: hashed,
+      department: department._id,
+      district: district._id,
+      role: "admin",
+      tier,                                   // Inject the tier
+      supervisor: supervisor || undefined,    // Inject the supervisor if it exists
+      isActive: true,
+    });
+    adminId = admin._id.toString();
 
     const populated = await Admin.findById(adminId)
       .select("-password")
@@ -469,7 +462,7 @@ export const createDepartmentAdmin = async (
       res.status(409).json({
         success: false,
         message:
-          "Duplicate admin record. This department may already have an admin.",
+          "Could not create Admin.",
       });
       return;
     }
@@ -516,11 +509,86 @@ export const removeDepartmentAdmin = async (
       res.status(404).json({ success: false, message: "Admin not found." });
       return;
     }
+
+    // --- NEW SAFEGUARD: Prevent deleting the last admin of a specific tier ---
+    const adminCountInTier = await Admin.countDocuments({
+      department: admin.department,
+      district: admin.district,
+      tier: admin.tier,
+      isActive: true // Only count active admins as valid backups
+    });
+
+    if (adminCountInTier <= 1) {
+      res.status(400).json({ 
+        success: false, 
+        message: `Cannot remove this admin. They are the only active Tier ${admin.tier} admin remaining for this department and district. Please assign a replacement first.` 
+      });
+      return;
+    }
+
     await Admin.deleteOne({ _id: admin._id });
 
     res
       .status(200)
       .json({ success: true, message: "Department admin removed successfully." });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getPossibleSupervisors = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const { departmentId, districtId, tier } = req.query as {
+      departmentId?: string;
+      districtId?: string;
+      tier?: string;
+    };
+
+    if (!departmentId || !districtId || !tier) {
+      res.status(400).json({
+        success: false,
+        message: "departmentId, districtId, and tier are required parameters.",
+      });
+      return;
+    }
+
+    if (!isValidObjectId(departmentId) || !isValidObjectId(districtId)) {
+      res.status(400).json({
+        success: false,
+        message: "Invalid departmentId or districtId format.",
+      });
+      return;
+    }
+
+    const tierNumber = parseInt(tier, 10);
+    if (isNaN(tierNumber) || tierNumber < 1) {
+      res.status(400).json({
+        success: false,
+        message: "Invalid tier level.",
+      });
+      return;
+    }
+
+    // Find active admins in the same district and department with a HIGHER tier
+    const possibleSupervisors = await Admin.find({
+      department: departmentId,
+      district: districtId,
+      tier: (tierNumber + 1) as TierLevel, 
+      isActive: true,
+      role: "admin", 
+    })
+      .select("name username email tier") // Only return fields necessary for a dropdown UI
+      .sort({ name: 1 }) // Sort alphabetically
+      .lean();
+
+    res.status(200).json({
+      success: true,
+      supervisors: possibleSupervisors,
+    });
   } catch (err) {
     next(err);
   }

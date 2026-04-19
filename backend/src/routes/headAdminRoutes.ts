@@ -11,6 +11,7 @@ import {
   createDepartmentAdmin,
   listDepartmentAdmins,
   removeDepartmentAdmin,
+  getPossibleSupervisors,
   getFeedbackDashboard,
 } from "../controllers/headAdminController";
 
@@ -28,6 +29,7 @@ router.get("/head-admin/meta", getHeadAdminMeta);
 router.get("/head-admin/department-admins", listDepartmentAdmins);
 router.post("/head-admin/department-admins", createDepartmentAdmin);
 router.delete("/head-admin/department-admins/:id", removeDepartmentAdmin);
+router.get("/head-admin/supervisors", getPossibleSupervisors)
 router.get("/head-admin/feedbacks", getFeedbackDashboard);
 
 export default router;
