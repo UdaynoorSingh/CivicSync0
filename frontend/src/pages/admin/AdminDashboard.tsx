@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { FileText, Clock, CheckCircle, Settings, Loader2 } from "lucide-react";
+import { FileText, Clock, CheckCircle, Settings, Loader2, ImageIcon } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import * as api from "../../lib/api";
@@ -207,6 +207,7 @@ export default function AdminDashboard() {
                 <thead>
                   <tr className="bg-gray-50 text-xs text-gray-400 font-semibold uppercase">
                     {[
+                      "Photo",
                       "Ref No",
                       "Citizen",
                       "Department / Category",
@@ -226,6 +227,19 @@ export default function AdminDashboard() {
                       key={c._id}
                       className={`border-t border-gray-50 hover:bg-gray-50 transition-colors ${i % 2 === 0 ? "" : "bg-gray-50/50"}`}
                     >
+                      <td className="px-5 py-3">
+                        {c.photoUrl ? (
+                          <img
+                            src={c.photoUrl}
+                            alt=""
+                            className="w-9 h-9 rounded-lg object-cover border border-gray-200"
+                          />
+                        ) : (
+                          <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center">
+                            <ImageIcon size={14} className="text-gray-300" />
+                          </div>
+                        )}
+                      </td>
                       <td className="px-5 py-3 font-mono text-xs text-gray-600">
                         {c.referenceNumber}
                       </td>

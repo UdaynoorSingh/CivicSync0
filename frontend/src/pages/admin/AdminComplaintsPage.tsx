@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
   Filter,
@@ -7,6 +7,8 @@ import {
   ChevronUp,
   AlertTriangle,
   Loader2,
+  ImageIcon,
+  X,
 } from "lucide-react";
 import * as api from "../../lib/api";
 import type { AdminComplaint } from "../../lib/api";
@@ -43,6 +45,7 @@ export default function AdminComplaintsPage() {
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   const totalPages = Math.ceil(total / 20);
 
@@ -268,41 +271,78 @@ export default function AdminComplaintsPage() {
                     {expanded === c._id && (
                       <tr key={`${c._id}-exp`} className="bg-blue-50/40">
                         <td colSpan={7} className="px-6 py-4">
-                          <p className="text-sm text-gray-700 mb-2">
-                            <strong>Description:</strong> {c.description}
-                          </p>
-                          <p className="text-xs text-gray-500 mb-1">
-                            <strong>Address:</strong> {c.address?.street},{" "}
-                            {c.address?.city}, {c.address?.state} —{" "}
-                            {c.address?.pincode}
-                          </p>
-                          {c.statusHistory?.length > 0 && (
-                            <div className="mt-2">
-                              <p className="text-xs font-semibold text-gray-500 mb-1">
-                                Status History
+                          <div className="flex gap-5">
+                            {/* Left: details */}
+                            <div className="flex-1">
+                              <p className="text-sm text-gray-700 mb-2">
+                                <strong>Description:</strong> {c.description}
                               </p>
-                              <div className="flex flex-col gap-1">
-                                {c.statusHistory.map((h, idx) => (
-                                  <div
-                                    key={idx}
-                                    className="text-xs text-gray-500 flex gap-2"
-                                  >
-                                    <span className="font-mono">
-                                      {new Date(h.timestamp).toLocaleString(
-                                        "en-IN",
-                                      )}
-                                    </span>
-                                    <span
-                                      className={`font-semibold ${STATUS_BADGE[h.status]?.split(" ")[1] ?? ""}`}
-                                    >
-                                      {h.status}
-                                    </span>
-                                    {h.note && <span>— {h.note}</span>}
+                              <p className="text-xs text-gray-500 mb-1">
+                                <strong>Address:</strong> {c.address?.street},{" "}
+                                {c.address?.city}, {c.address?.state} —{" "}
+                                {c.address?.pincode}
+                              </p>
+                              {c.statusHistory?.length > 0 && (
+                                <div className="mt-2">
+                                  <p className="text-xs font-semibold text-gray-500 mb-1">
+                                    Status History
+                                  </p>
+                                  <div className="flex flex-col gap-1">
+                                    {c.statusHistory.map((h, idx) => (
+                                      <div
+                                        key={idx}
+                                        className="text-xs text-gray-500 flex gap-2"
+                                      >
+                                        <span className="font-mono">
+                                          {new Date(h.timestamp).toLocaleString(
+                                            "en-IN",
+                                          )}
+                                        </span>
+                                        <span
+                                          className={`font-semibold ${STATUS_BADGE[h.status]?.split(" ")[1] ?? ""}`}
+                                        >
+                                          {h.status}
+                                        </span>
+                                        {h.note && <span>— {h.note}</span>}
+                                      </div>
+                                    ))}
                                   </div>
-                                ))}
-                              </div>
+                                </div>
+                              )}
                             </div>
-                          )}
+
+                            {/* Right: complaint image */}
+                            <div className="shrink-0">
+                              <p className="text-xs font-semibold text-gray-500 mb-1.5">
+                                Attached Photo
+                              </p>
+                              {c.photoUrl ? (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setLightboxUrl(c.photoUrl!);
+                                  }}
+                                  className="group relative rounded-xl overflow-hidden border-2 border-gray-200 hover:border-blue-400 transition-colors"
+                                >
+                                  <img
+                                    src={c.photoUrl}
+                                    alt="Complaint"
+                                    className="w-36 h-28 object-cover"
+                                  />
+                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                                    <span className="text-white text-[10px] font-semibold opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 px-2 py-0.5 rounded-full">
+                                      View Full
+                                    </span>
+                                  </div>
+                                </button>
+                              ) : (
+                                <div className="w-36 h-28 rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-1 text-gray-300">
+                                  <ImageIcon size={22} />
+                                  <span className="text-[10px] font-medium">No image</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </td>
                       </tr>
                     )}
@@ -341,6 +381,39 @@ export default function AdminComplaintsPage() {
           </button>
         </div>
       )}
+      {/* ── Image Lightbox Modal ────────────────────────────────────── */}
+      <AnimatePresence>
+        {lightboxUrl && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+            onClick={() => setLightboxUrl(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.85, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.85, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="relative max-w-3xl max-h-[85vh]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img
+                src={lightboxUrl}
+                alt="Complaint full view"
+                className="rounded-2xl object-contain max-h-[85vh] shadow-2xl"
+              />
+              <button
+                onClick={() => setLightboxUrl(null)}
+                className="absolute -top-3 -right-3 bg-white text-gray-700 rounded-full p-1.5 shadow-lg hover:bg-gray-100 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

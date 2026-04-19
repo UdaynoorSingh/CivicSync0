@@ -78,7 +78,7 @@ export const getAdminComplaints = async (
     const filter: Record<string, any> = {};
     if (districtId) filter.district = districtId;
     if (departmentId) filter.department = departmentId;
-    filter.assignedAdmin = req.user?.id;
+    // filter.assignedAdmin = req.user?.id;
     if (status && status !== "all") filter.status = status;
     if (urgency && urgency !== "all") filter.urgency = urgency;
     if (priority && priority !== "all") filter.priority = priority;

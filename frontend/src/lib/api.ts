@@ -347,6 +347,7 @@ export interface AdminComplaint {
   district: { name: string; state: string };
   address: { street: string; city: string; state: string; pincode: string };
   statusHistory: { status: string; note: string; timestamp: string }[];
+  photoUrl?: string;
 }
 
 export interface AdminServiceRequest {
