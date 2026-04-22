@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { INDIAN_STATES } from "../../lib/indianStates";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -127,6 +127,69 @@ export default function NewServiceRequestPage() {
 
   const { t } = useTranslation();
   const navigate = useNavigate();
+
+  // ── Service type key → display label mapping ──
+  const SERVICE_TYPE_MAP: Record<string, string> = {
+    "Electricity Connection": "electricity",
+    "Water Connection": "water",
+    "Gas Connection": "gas",
+  };
+
+  // ── Voice Form Filling V2: listen for field-by-field updates ─────────────
+  useEffect(() => {
+    const handleVoiceUpdate = (e: Event) => {
+      const { key, value } = (e as CustomEvent).detail;
+      if (!key || !value) return;
+
+      switch (key) {
+        case "serviceType": {
+          // Voice sends display label like "Electricity Connection"
+          const mappedType = SERVICE_TYPE_MAP[value];
+          if (mappedType) {
+            setServiceType(mappedType);
+            setRequestType("new_connection");
+          }
+          break;
+        }
+        case "applicantName":
+          setApplicantName(value);
+          break;
+        case "contactPhone":
+          setContactPhone(value.replace(/\D/g, "").slice(-10));
+          break;
+        case "streetAddress":
+          setStreetAddress(value);
+          break;
+        case "state": {
+          const matchedState = INDIAN_STATES.find(
+            (s) => s.toLowerCase() === value.toLowerCase(),
+          );
+          if (matchedState) setState(matchedState);
+          break;
+        }
+        case "district":
+          setDistrict(value);
+          break;
+        case "pincode":
+          setPincode(value.replace(/\D/g, "").slice(0, 6));
+          break;
+      }
+    };
+
+    const handleStepChange = (e: Event) => {
+      const { step: newStep } = (e as CustomEvent).detail;
+      if (typeof newStep === "number" && newStep >= 1 && newStep <= 4) {
+        setStep(newStep);
+      }
+    };
+
+    window.addEventListener("voice-form-update", handleVoiceUpdate);
+    window.addEventListener("voice-step-change", handleStepChange);
+    return () => {
+      window.removeEventListener("voice-form-update", handleVoiceUpdate);
+      window.removeEventListener("voice-step-change", handleStepChange);
+    };
+  });
 
   const step2Valid =
     applicantName.trim().length > 0 &&

@@ -1,5 +1,5 @@
 // ── Voice Navigation API Service ─────────────────────────────────────────────
-// Calls the FastAPI proxy endpoints for TTS, STT, and Intent routing.
+// Calls the FastAPI proxy endpoints for TTS, STT, Intent routing, and Form Field extraction.
 
 const AI_BASE = (import.meta.env.VITE_AI_API_URL as string) || "http://localhost:8000";
 
@@ -26,6 +26,7 @@ export async function fetchTTSAudio(text: string, language = "hi-IN"): Promise<s
 /**
  * Call Groq Whisper STT via backend proxy.
  * Sends an audio blob and returns the transcribed text.
+ * Language is auto-detected (Hindi/English/Hinglish).
  */
 export async function transcribeAudio(audioBlob: Blob): Promise<string> {
   const formData = new FormData();
@@ -89,4 +90,39 @@ export async function getVoiceIntent(
   }
 
   return (await res.json()) as VoiceIntent;
+}
+
+/**
+ * Extract a structured form field value from the user's spoken answer.
+ * Uses LLM to match spoken Hindi/English to the correct option or extract text.
+ */
+export interface FormFieldResult {
+  value: string;
+  confidence: "high" | "low";
+  speak: string;
+}
+
+export async function extractFormField(
+  fieldLabel: string,
+  fieldType: string,
+  options: string[],
+  userText: string,
+): Promise<FormFieldResult> {
+  const res = await fetch(`${AI_BASE}/voice/form-field`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      field_label: fieldLabel,
+      field_type: fieldType,
+      options,
+      user_text: userText,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Form field extraction failed: ${err}`);
+  }
+
+  return (await res.json()) as FormFieldResult;
 }

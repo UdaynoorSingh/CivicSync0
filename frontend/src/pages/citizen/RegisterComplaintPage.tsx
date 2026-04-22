@@ -243,6 +243,85 @@ export default function RegisterComplaintPage() {
     window.history.replaceState({}, document.title);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Voice Form Filling V2: listen for field-by-field updates ─────────────
+  useEffect(() => {
+    const handleVoiceUpdate = (e: Event) => {
+      const { key, value } = (e as CustomEvent).detail;
+      if (!key || !value) return;
+
+      switch (key) {
+        case "department": {
+          const dept = DEPARTMENTS.find(
+            (d) =>
+              d.name.toLowerCase() === value.toLowerCase() ||
+              d.key === value.toLowerCase() ||
+              d.code.toLowerCase() === value.toLowerCase(),
+          );
+          if (dept) {
+            setSelectedDept(dept);
+            setCategory(""); // Reset category when dept changes
+          }
+          break;
+        }
+        case "scope":
+          if (["personal", "locality"].includes(value.toLowerCase())) {
+            setComplaintScope(value.toLowerCase() as "personal" | "locality");
+          }
+          break;
+        case "category":
+          if (selectedDept) {
+            const matchedCat = selectedDept.categories.find(
+              (c) => c.toLowerCase() === value.toLowerCase(),
+            );
+            setCategory(matchedCat ?? value);
+          } else {
+            setCategory(value);
+          }
+          break;
+        case "description":
+          setDescription(value);
+          break;
+        case "urgency": {
+          const urgVal = value.toLowerCase();
+          if (["low", "medium", "high"].includes(urgVal)) {
+            setUrgency(urgVal as Urgency);
+          }
+          break;
+        }
+        case "state": {
+          const matchedState = INDIAN_STATES.find(
+            (s) => s.toLowerCase() === value.toLowerCase(),
+          );
+          if (matchedState) setState_(matchedState);
+          break;
+        }
+        case "district":
+          setDistrict(value);
+          break;
+        case "pincode":
+          setPincode(value.replace(/\D/g, "").slice(0, 6));
+          break;
+        case "streetAddress":
+          setStreetAddress(value);
+          break;
+      }
+    };
+
+    const handleStepChange = (e: Event) => {
+      const { step: newStep } = (e as CustomEvent).detail;
+      if (typeof newStep === "number" && newStep >= 1 && newStep <= 3) {
+        setStep(newStep);
+      }
+    };
+
+    window.addEventListener("voice-form-update", handleVoiceUpdate);
+    window.addEventListener("voice-step-change", handleStepChange);
+    return () => {
+      window.removeEventListener("voice-form-update", handleVoiceUpdate);
+      window.removeEventListener("voice-step-change", handleStepChange);
+    };
+  }); // runs on every render to capture latest selectedDept
+
   const handleStateChange = (s: string) => {
     setState_(s);
     setDistrict("");
