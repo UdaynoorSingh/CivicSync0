@@ -35,7 +35,7 @@ export default function LoginPage() {
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { setAdminSession, loginGuest } = useSessionStore();
+  const { setAdminSession, setHeadAdminSession, loginGuest } = useSessionStore();
   const { t } = useTranslation();
   const navigate = useNavigate();
 
@@ -117,19 +117,22 @@ export default function LoginPage() {
   };
 
   const handleHeadAdminSubmit = async () => {
-    const cleaned = phone.replace(/\D/g, "");
-    if (cleaned.length < 10) {
-      setError("Please enter a valid mobile number.");
+    if (!username.trim() || !password) {
+      setError("Username and password are required.");
       return;
     }
-
     setError("");
     setLoading(true);
     try {
-      await api.sendHeadAdminOTP(cleaned);
-      navigate("/head-admin/otp", { state: { phone: cleaned } });
+      const res = await api.headAdminLogin(username.trim(), password);
+      setHeadAdminSession({
+        id: res.admin.id,
+        name: res.admin.name,
+        role: "head_admin",
+      });
+      navigate("/head-admin", { replace: true });
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to send OTP.");
+      setError(err instanceof Error ? err.message : "Invalid credentials.");
     } finally {
       setLoading(false);
     }
@@ -202,63 +205,105 @@ export default function LoginPage() {
 
         {(role === "citizen" || role === "head_admin") && (
           <>
-            <label className="text-sm font-medium text-gray-600 mb-1.5 block">
-              {t("mobileNumber")}
-            </label>
-            <input
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              onKeyDown={(e) =>
-                e.key === "Enter" &&
-                (role === "citizen"
-                  ? void handleCitizenSubmit()
-                  : void handleHeadAdminSubmit())
-              }
-              placeholder="98765 XXXXX"
-              maxLength={15}
-              disabled={loading}
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-800 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-300 mb-4 disabled:opacity-60"
-            />
-            {error && <p className="text-red-500 text-xs mb-3">{error}</p>}
-            <button
-              onClick={
-                role === "citizen" ? handleCitizenSubmit : handleHeadAdminSubmit
-              }
-              disabled={loading}
-              className="w-full py-3.5 rounded-xl bg-[#1E3A5F] text-white font-bold text-base hover:bg-[#163050] transition-colors btn-touch disabled:opacity-60 flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                  Sending OTP...
-                </>
-              ) : (
-                t("sendOtp")
-              )}
-            </button>
-            {role === "head_admin" && (
-              <button
-                onClick={() =>
-                  navigate("/head-admin/firebase-login", {
-                    state: { phone: phone.replace(/\D/g, "") },
-                  })
-                }
-                className="w-full mt-3 py-2 text-sm text-blue-600 hover:text-blue-700"
-              >
-                Login with Firebase OTP
-              </button>
-            )}
-            {role === "citizen" && (
-              <button
-                onClick={() => {
-                  loginGuest();
-                  navigate("/guest");
-                }}
-                className="w-full mt-3 py-2 text-sm text-gray-500 hover:text-gray-700"
-              >
-                Continue as Guest
-              </button>
+            {role === "head_admin" ? (
+              <>
+                <label className="text-sm font-medium text-gray-600 mb-1.5 block">
+                  Username
+                </label>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => {
+                    setUsername(e.target.value);
+                    setError("");
+                  }}
+                  onKeyDown={(e) => e.key === "Enter" && void handleHeadAdminSubmit()}
+                  placeholder="head01"
+                  disabled={loading}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-800 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-300 mb-4 disabled:opacity-60"
+                />
+                <label className="text-sm font-medium text-gray-600 mb-1.5 block">
+                  Password
+                </label>
+                <div className="relative mb-4">
+                  <input
+                    type={showPw ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setError("");
+                    }}
+                    onKeyDown={(e) => e.key === "Enter" && void handleHeadAdminSubmit()}
+                    placeholder="••••••••"
+                    disabled={loading}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-800 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-300 pr-12 disabled:opacity-60"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPw((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+                  >
+                    {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+                {error && <p className="text-red-500 text-xs mb-3">{error}</p>}
+                <button
+                  onClick={() => void handleHeadAdminSubmit()}
+                  disabled={loading}
+                  className="w-full py-3.5 rounded-xl bg-[#1E3A5F] text-white font-bold text-base hover:bg-[#163050] transition-colors btn-touch disabled:opacity-60 flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                      Signing in...
+                    </>
+                  ) : (
+                    t("loginBtn")
+                  )}
+                </button>
+              </>
+            ) : (
+              <>
+                <label className="text-sm font-medium text-gray-600 mb-1.5 block">
+                  {t("mobileNumber")}
+                </label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && void handleCitizenSubmit()
+                  }
+                  placeholder="98765 XXXXX"
+                  maxLength={15}
+                  disabled={loading}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-800 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-300 mb-4 disabled:opacity-60"
+                />
+                {error && <p className="text-red-500 text-xs mb-3">{error}</p>}
+                <button
+                  onClick={() => void handleCitizenSubmit()}
+                  disabled={loading}
+                  className="w-full py-3.5 rounded-xl bg-[#1E3A5F] text-white font-bold text-base hover:bg-[#163050] transition-colors btn-touch disabled:opacity-60 flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                      Sending OTP...
+                    </>
+                  ) : (
+                    t("sendOtp")
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    loginGuest();
+                    navigate("/guest");
+                  }}
+                  className="w-full mt-3 py-2 text-sm text-gray-500 hover:text-gray-700"
+                >
+                  Continue as Guest
+                </button>
+              </>
             )}
           </>
         )}

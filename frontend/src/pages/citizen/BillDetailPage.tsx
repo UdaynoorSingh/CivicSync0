@@ -56,6 +56,23 @@ interface RazorpayOptions {
     netbanking?: boolean;
     wallet?: boolean;
   };
+  config?: {
+    display?: {
+      blocks?: {
+        [key: string]: {
+          name: string;
+          instruments: Array<{
+            method: string;
+            flows?: string[];
+          }>;
+        };
+      };
+      sequence?: string[];
+      preferences?: {
+        show_default_blocks?: boolean;
+      };
+    };
+  };
   theme?: {
     color?: string;
   };
@@ -187,6 +204,27 @@ export default function BillDetailPage() {
           netbanking: method === "netbanking",
           wallet: false,
         },
+        ...(method === "upi" && {
+          config: {
+            display: {
+              blocks: {
+                upi_block: {
+                  name: "Pay via UPI",
+                  instruments: [
+                    {
+                      method: "upi",
+                      flows: ["qr", "intent"],
+                    },
+                  ],
+                },
+              },
+              sequence: ["block.upi_block"],
+              preferences: {
+                show_default_blocks: false,
+              },
+            },
+          },
+        }),
         modal: {
           ondismiss: () => {
             void markPaymentFailure({

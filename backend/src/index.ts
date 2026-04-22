@@ -16,6 +16,7 @@ import billRoutes from "./routes/billRoutes";
 import helpRoutes from "./routes/helpRoutes";
 import headAdminRoutes from "./routes/headAdminRoutes";
 import notificationRoutes from "./routes/notificationRoutes";
+import emailRoutes from "./routes/emailRoutes";
 import { errorHandler } from "./middleware/errorHandler";
 import { startSLAEngine } from "./services/slaEscalationService";
 
@@ -53,6 +54,7 @@ app.use("/api/payment", paymentRoutes);
 app.use("/api/bills", billRoutes);
 app.use("/api/help", helpRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/email", emailRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({ success: false, message: "Route not found." });

@@ -32,7 +32,7 @@ const generateReceiptNumber = async (): Promise<string> => {
   throw new Error("Failed to generate a unique receipt number.");
 };
 
-const generateReceiptPdf = (input: {
+export const generateReceiptPdf = (input: {
   receiptNumber: string;
   paymentId: string;
   paymentFor: string;

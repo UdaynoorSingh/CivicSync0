@@ -2,6 +2,7 @@ import { Router } from "express";
 import { authGuard } from "../middleware/authGuard";
 import { roleGuard } from "../middleware/roleGuard";
 import {
+  headAdminLogin,
   sendHeadAdminOTP,
   verifyHeadAdminOTP,
   headAdminFirebaseLogin,
@@ -17,6 +18,7 @@ import {
 
 const router = Router();
 
+router.post("/head-admin/login", headAdminLogin);
 router.post("/head-admin/send-otp", sendHeadAdminOTP);
 router.post("/head-admin/verify-otp", verifyHeadAdminOTP);
 router.post("/head-admin/firebase-login", headAdminFirebaseLogin);

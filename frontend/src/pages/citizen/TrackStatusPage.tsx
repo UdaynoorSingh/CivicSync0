@@ -21,7 +21,9 @@ import {
   AlertCircle,
   Filter,
   CalendarDays,
+  Mail,
 } from "lucide-react";
+import EmailModal from "../../components/shared/EmailModal";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { useTranslation } from "../../lib/i18n";
@@ -209,6 +211,7 @@ function PaymentCard({
   onToggle: () => void;
 }) {
   const [downloading, setDownloading] = useState(false);
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
   const cfg = PAYMENT_STATUS_CONFIG[p.status];
 
   const handleDownload = async (e: React.MouseEvent) => {
@@ -323,19 +326,42 @@ function PaymentCard({
                 )}
               </div>
               {p.status === "success" && (
-                <button
-                  onClick={handleDownload}
-                  disabled={downloading}
-                  className="mt-1 w-full flex items-center justify-center gap-2 bg-[#1E3A5F] text-white text-xs font-semibold py-2 rounded-xl disabled:opacity-60"
-                >
-                  {downloading ? (
-                    <Loader2 size={13} className="animate-spin" />
-                  ) : (
-                    <Download size={13} />
-                  )}
-                  {downloading ? "Downloading…" : "Download Receipt"}
-                </button>
+                <div className="flex gap-2 mt-1">
+                  <button
+                    onClick={handleDownload}
+                    disabled={downloading}
+                    className="flex-1 flex items-center justify-center gap-2 bg-[#1E3A5F] text-white text-xs font-semibold py-2 rounded-xl disabled:opacity-60"
+                  >
+                    {downloading ? (
+                      <Loader2 size={13} className="animate-spin" />
+                    ) : (
+                      <Download size={13} />
+                    )}
+                    {downloading ? "Downloading…" : "Download"}
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEmailModalOpen(true);
+                    }}
+                    className="flex-1 flex items-center justify-center gap-2 border border-gray-200 text-gray-600 text-xs font-semibold py-2 rounded-xl hover:bg-gray-50"
+                  >
+                    <Mail size={13} />
+                    Email
+                  </button>
+                </div>
               )}
+              <EmailModal
+                open={emailModalOpen}
+                onClose={() => setEmailModalOpen(false)}
+                onSubmit={async (email) => {
+                  await api.sendPaymentReceiptByEmail({ paymentId: p._id, email });
+                }}
+                title="Send Receipt via Email"
+                description="Enter the recipient's email address to receive the payment receipt as a PDF attachment."
+                loadingLabel="Sending..."
+                successMessage="Receipt sent successfully!"
+              />
             </div>
           </motion.div>
         )}
@@ -563,8 +589,9 @@ function ComplaintCard({
   onToggle: () => void;
 }) {
   const [dlLoading, setDlLoading] = useState(false);
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
 
-  const downloadSingleComplaintPDF = () => {
+  const downloadSingleComplaintPDF = async (email?: string) => {
     setDlLoading(true);
     try {
       const doc = createPDFDoc(`Complaint — ${c.referenceNumber}`);
@@ -631,7 +658,16 @@ function ComplaintCard({
         });
       }
 
-      doc.save(`CivicSync_${c.referenceNumber}.pdf`);
+      if (email) {
+        const formData = new FormData();
+        formData.append("email", email);
+        formData.append("docType", "Complaint Details");
+        formData.append("refNumber", c.referenceNumber);
+        formData.append("pdf", doc.output("blob"), `CivicSync_${c.referenceNumber}.pdf`);
+        await api.sendCustomPDFByEmail(formData);
+      } else {
+        doc.save(`CivicSync_${c.referenceNumber}.pdf`);
+      }
     } finally {
       setDlLoading(false);
     }
@@ -707,18 +743,41 @@ function ComplaintCard({
             {c.statusHistory?.length > 0 && (
               <StatusTimeline history={c.statusHistory} />
             )}
-            <button
-              onClick={downloadSingleComplaintPDF}
-              disabled={dlLoading}
-              className="mt-3 w-full flex items-center justify-center gap-2 bg-[#1E3A5F] text-white text-xs font-semibold py-2.5 rounded-xl hover:bg-[#162d4a] transition-colors disabled:opacity-60"
-            >
-              {dlLoading ? (
-                <Loader2 size={13} className="animate-spin" />
-              ) : (
-                <Download size={13} />
-              )}
-              {dlLoading ? "Generating…" : "Download Complaint PDF"}
-            </button>
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={() => downloadSingleComplaintPDF()}
+                disabled={dlLoading}
+                className="flex-1 flex items-center justify-center gap-2 bg-[#1E3A5F] text-white text-xs font-semibold py-2.5 rounded-xl hover:bg-[#162d4a] transition-colors disabled:opacity-60"
+              >
+                {dlLoading ? (
+                  <Loader2 size={13} className="animate-spin" />
+                ) : (
+                  <Download size={13} />
+                )}
+                {dlLoading ? "Generating…" : "Download PDF"}
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEmailModalOpen(true);
+                }}
+                className="flex-1 flex items-center justify-center gap-2 border border-gray-200 text-gray-600 text-xs font-semibold py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
+              >
+                <Mail size={13} />
+                Email PDF
+              </button>
+            </div>
+            <EmailModal
+              open={emailModalOpen}
+              onClose={() => setEmailModalOpen(false)}
+              onSubmit={async (email) => {
+                await downloadSingleComplaintPDF(email);
+              }}
+              title="Send Complaint PDF via Email"
+              description="Enter the recipient's email address to receive the complaint details as a PDF attachment."
+              loadingLabel="Sending..."
+              successMessage="Complaint PDF sent successfully!"
+            />
           </motion.div>
         )}
       </AnimatePresence>
@@ -739,8 +798,9 @@ function ServiceRequestCard({
   onToggle: () => void;
 }) {
   const [dlLoading, setDlLoading] = useState(false);
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
 
-  const downloadSingleSRPDF = () => {
+  const downloadSingleSRPDF = async (email?: string) => {
     setDlLoading(true);
     try {
       const doc = createPDFDoc(`Service Request — ${sr.referenceNumber}`);
@@ -799,7 +859,16 @@ function ServiceRequestCard({
         });
       }
 
-      doc.save(`CivicSync_${sr.referenceNumber}.pdf`);
+      if (email) {
+        const formData = new FormData();
+        formData.append("email", email);
+        formData.append("docType", "Service Request Details");
+        formData.append("refNumber", sr.referenceNumber);
+        formData.append("pdf", doc.output("blob"), `CivicSync_${sr.referenceNumber}.pdf`);
+        await api.sendCustomPDFByEmail(formData);
+      } else {
+        doc.save(`CivicSync_${sr.referenceNumber}.pdf`);
+      }
     } finally {
       setDlLoading(false);
     }
@@ -870,18 +939,41 @@ function ServiceRequestCard({
             {sr.statusHistory?.length > 0 && (
               <StatusTimeline history={sr.statusHistory} />
             )}
-            <button
-              onClick={downloadSingleSRPDF}
-              disabled={dlLoading}
-              className="mt-3 w-full flex items-center justify-center gap-2 bg-[#1E3A5F] text-white text-xs font-semibold py-2.5 rounded-xl hover:bg-[#162d4a] transition-colors disabled:opacity-60"
-            >
-              {dlLoading ? (
-                <Loader2 size={13} className="animate-spin" />
-              ) : (
-                <Download size={13} />
-              )}
-              {dlLoading ? "Generating…" : "Download Request PDF"}
-            </button>
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={() => downloadSingleSRPDF()}
+                disabled={dlLoading}
+                className="flex-1 flex items-center justify-center gap-2 bg-[#1E3A5F] text-white text-xs font-semibold py-2.5 rounded-xl hover:bg-[#162d4a] transition-colors disabled:opacity-60"
+              >
+                {dlLoading ? (
+                  <Loader2 size={13} className="animate-spin" />
+                ) : (
+                  <Download size={13} />
+                )}
+                {dlLoading ? "Generating…" : "Download PDF"}
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEmailModalOpen(true);
+                }}
+                className="flex-1 flex items-center justify-center gap-2 border border-gray-200 text-gray-600 text-xs font-semibold py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
+              >
+                <Mail size={13} />
+                Email PDF
+              </button>
+            </div>
+            <EmailModal
+              open={emailModalOpen}
+              onClose={() => setEmailModalOpen(false)}
+              onSubmit={async (email) => {
+                await downloadSingleSRPDF(email);
+              }}
+              title="Send Service Request PDF via Email"
+              description="Enter the recipient's email address to receive the service request details as a PDF attachment."
+              loadingLabel="Sending..."
+              successMessage="Service Request PDF sent successfully!"
+            />
           </motion.div>
         )}
       </AnimatePresence>
@@ -901,6 +993,8 @@ function FilterBar({
   onClear,
   onDownload,
   downloading,
+  onEmail,
+  emailing,
   filteredCount,
   totalCount,
 }: {
@@ -914,6 +1008,8 @@ function FilterBar({
   onClear: () => void;
   onDownload: () => void;
   downloading: boolean;
+  onEmail: () => void;
+  emailing: boolean;
   filteredCount: number;
   totalCount: number;
 }) {
@@ -969,18 +1065,32 @@ function FilterBar({
             className="text-[11px] border border-gray-200 rounded-xl px-2 py-2 bg-gray-50 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-200 w-[115px]"
           />
         </div>
-        <button
-          onClick={onDownload}
-          disabled={downloading || filteredCount === 0}
-          className="flex items-center gap-1.5 bg-[#1E3A5F] text-white text-xs font-semibold px-3.5 py-2 rounded-xl disabled:opacity-50 hover:bg-[#162d4a] transition-colors"
-        >
-          {downloading ? (
-            <Loader2 size={13} className="animate-spin" />
-          ) : (
-            <Download size={13} />
-          )}
-          {downloading ? "Generating…" : "Download PDF"}
-        </button>
+        <div className="flex gap-1">
+          <button
+            onClick={onDownload}
+            disabled={downloading || filteredCount === 0}
+            className="flex items-center gap-1.5 bg-[#1E3A5F] text-white text-xs font-semibold px-3.5 py-2 rounded-xl disabled:opacity-50 hover:bg-[#162d4a] transition-colors"
+          >
+            {downloading ? (
+              <Loader2 size={13} className="animate-spin" />
+            ) : (
+              <Download size={13} />
+            )}
+            {downloading ? "Generating…" : "Download PDF"}
+          </button>
+          <button
+            onClick={onEmail}
+            disabled={emailing || filteredCount === 0}
+            className="flex items-center gap-1.5 border border-gray-200 text-gray-600 text-xs font-semibold px-3.5 py-2 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            {emailing ? (
+              <Loader2 size={13} className="animate-spin" />
+            ) : (
+              <Mail size={13} />
+            )}
+            Email PDF
+          </button>
+        </div>
       </div>
     </motion.div>
   );
@@ -1037,6 +1147,9 @@ export default function TrackStatusPage() {
   const [loadingP, setLoadingP] = useState(false);
   const [paymentsLoaded, setPaymentsLoaded] = useState(false);
   const [paySubTab, setPaySubTab] = useState<"history" | "bills">("history");
+
+  const [listEmailModalOpen, setListEmailModalOpen] = useState(false);
+  const [listEmailType, setListEmailType] = useState<"complaints" | "requests" | "payments" | "bills" | null>(null);
 
   // Ref-number search (complaints only)
   const [searchRef, setSearchRef] = useState("");
@@ -1196,7 +1309,7 @@ export default function TrackStatusPage() {
   );
 
   // ── PDF generators ──────────────────────────────────────────────────────────
-  const downloadComplaintsPDF = () => {
+  const downloadComplaintsPDF = async (email?: string) => {
     setPdfLoading(true);
     try {
       const doc = createPDFDoc("Complaint Status History");
@@ -1217,13 +1330,21 @@ export default function TrackStatusPage() {
         alternateRowStyles: { fillColor: [245, 247, 255] },
         margin: { left: 14, right: 14 },
       });
-      doc.save("CivicSync_Complaints.pdf");
+      if (email) {
+        const formData = new FormData();
+        formData.append("email", email);
+        formData.append("docType", "Complaint Status History");
+        formData.append("pdf", doc.output("blob"), "CivicSync_Complaints.pdf");
+        await api.sendCustomPDFByEmail(formData);
+      } else {
+        doc.save("CivicSync_Complaints.pdf");
+      }
     } finally {
       setPdfLoading(false);
     }
   };
 
-  const downloadSRsPDF = () => {
+  const downloadSRsPDF = async (email?: string) => {
     setPdfLoading(true);
     try {
       const doc = createPDFDoc("Service Request History");
@@ -1244,13 +1365,21 @@ export default function TrackStatusPage() {
         alternateRowStyles: { fillColor: [245, 247, 255] },
         margin: { left: 14, right: 14 },
       });
-      doc.save("CivicSync_ServiceRequests.pdf");
+      if (email) {
+        const formData = new FormData();
+        formData.append("email", email);
+        formData.append("docType", "Service Request History");
+        formData.append("pdf", doc.output("blob"), "CivicSync_ServiceRequests.pdf");
+        await api.sendCustomPDFByEmail(formData);
+      } else {
+        doc.save("CivicSync_ServiceRequests.pdf");
+      }
     } finally {
       setPdfLoading(false);
     }
   };
 
-  const downloadPaymentsPDF = () => {
+  const downloadPaymentsPDF = async (email?: string) => {
     setPdfLoading(true);
     try {
       const doc = createPDFDoc("Transaction History");
@@ -1271,13 +1400,21 @@ export default function TrackStatusPage() {
         alternateRowStyles: { fillColor: [245, 247, 255] },
         margin: { left: 14, right: 14 },
       });
-      doc.save("CivicSync_Transactions.pdf");
+      if (email) {
+        const formData = new FormData();
+        formData.append("email", email);
+        formData.append("docType", "Transaction History");
+        formData.append("pdf", doc.output("blob"), "CivicSync_Transactions.pdf");
+        await api.sendCustomPDFByEmail(formData);
+      } else {
+        doc.save("CivicSync_Transactions.pdf");
+      }
     } finally {
       setPdfLoading(false);
     }
   };
 
-  const downloadBillsPDF = () => {
+  const downloadBillsPDF = async (email?: string) => {
     setPdfLoading(true);
     try {
       const doc = createPDFDoc("Bill History");
@@ -1298,7 +1435,15 @@ export default function TrackStatusPage() {
         alternateRowStyles: { fillColor: [245, 247, 255] },
         margin: { left: 14, right: 14 },
       });
-      doc.save("CivicSync_Bills.pdf");
+      if (email) {
+        const formData = new FormData();
+        formData.append("email", email);
+        formData.append("docType", "Bill History");
+        formData.append("pdf", doc.output("blob"), "CivicSync_Bills.pdf");
+        await api.sendCustomPDFByEmail(formData);
+      } else {
+        doc.save("CivicSync_Bills.pdf");
+      }
     } finally {
       setPdfLoading(false);
     }
@@ -1462,6 +1607,8 @@ export default function TrackStatusPage() {
               onClear={clearFilters}
               onDownload={downloadComplaintsPDF}
               downloading={pdfLoading}
+              onEmail={() => { setListEmailType("complaints"); setListEmailModalOpen(true); }}
+              emailing={false}
               filteredCount={filteredComplaints.length}
               totalCount={displayComplaints.length}
             />
@@ -1514,6 +1661,8 @@ export default function TrackStatusPage() {
               onClear={clearFilters}
               onDownload={downloadSRsPDF}
               downloading={pdfLoading}
+              onEmail={() => { setListEmailType("requests"); setListEmailModalOpen(true); }}
+              emailing={false}
               filteredCount={filteredSRs.length}
               totalCount={srs.length}
             />
@@ -1591,6 +1740,8 @@ export default function TrackStatusPage() {
                   onClear={clearFilters}
                   onDownload={downloadPaymentsPDF}
                   downloading={pdfLoading}
+                  onEmail={() => { setListEmailType("payments"); setListEmailModalOpen(true); }}
+                  emailing={false}
                   filteredCount={filteredPayments.length}
                   totalCount={payments.length}
                 />
@@ -1641,6 +1792,8 @@ export default function TrackStatusPage() {
                   onClear={clearFilters}
                   onDownload={downloadBillsPDF}
                   downloading={pdfLoading}
+                  onEmail={() => { setListEmailType("bills"); setListEmailModalOpen(true); }}
+                  emailing={false}
                   filteredCount={filteredBills.length}
                   totalCount={bills.length}
                 />
@@ -1735,6 +1888,46 @@ export default function TrackStatusPage() {
           )}
         </div>
       )}
+
+      {/* List Email Modal */}
+      <EmailModal
+        open={listEmailModalOpen}
+        onClose={() => {
+          setListEmailModalOpen(false);
+          setListEmailType(null);
+        }}
+        onSubmit={async (email) => {
+          if (listEmailType === "complaints") {
+            await downloadComplaintsPDF(email);
+          } else if (listEmailType === "requests") {
+            await downloadSRsPDF(email);
+          } else if (listEmailType === "payments") {
+            await downloadPaymentsPDF(email);
+          } else if (listEmailType === "bills") {
+            await downloadBillsPDF(email);
+          }
+        }}
+        title={`Send ${
+          listEmailType === "complaints"
+            ? "Complaints"
+            : listEmailType === "requests"
+              ? "Service Requests"
+              : listEmailType === "payments"
+                ? "Transactions"
+                : "Bills"
+        } PDF via Email`}
+        description={`Enter the recipient's email address to receive the filtered ${listEmailType} list as a PDF attachment.`}
+        loadingLabel="Generating & Sending..."
+        successMessage={`${
+          listEmailType === "complaints"
+            ? "Complaints"
+            : listEmailType === "requests"
+              ? "Service Requests"
+              : listEmailType === "payments"
+                ? "Transactions"
+                : "Bills"
+        } PDF sent successfully!`}
+      />
     </div>
   );
 }

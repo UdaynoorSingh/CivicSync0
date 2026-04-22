@@ -173,6 +173,21 @@ export const headAdminGetMe = () =>
     };
   }>("/admin/head-admin/me");
 
+export const headAdminLogin = (username: string, password: string) =>
+  request<{
+    success: boolean;
+    message: string;
+    token: string;
+    admin: {
+      id: string;
+      name: string;
+      role: "head_admin";
+    };
+  }>("/admin/head-admin/login", {
+    method: "POST",
+    body: JSON.stringify({ username, password }),
+  });
+
 export interface HeadAdminDepartment {
   _id: string;
   name: string;
@@ -925,6 +940,51 @@ export const deleteAllNotifications = () =>
   request<{ success: boolean; message: string }>("/notifications/delete-all", {
     method: "DELETE",
   });
+
+// ── Email ───────────────────────────────────────────────────────────────────────
+
+export const sendPaymentReceiptByEmail = (payload: { paymentId: string; email: string }) =>
+  request<{ success: boolean; message: string }>("/email/payment-receipt", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+export const sendComplaintPDFByEmail = (payload: { complaintId: string; email: string }) =>
+  request<{ success: boolean; message: string }>("/email/complaint-pdf", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+export const sendServiceRequestPDFByEmail = (payload: { serviceRequestId: string; email: string }) =>
+  request<{ success: boolean; message: string }>("/email/service-request-pdf", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+export const sendCustomPDFByEmail = async (formData: FormData) => {
+  const storedToken =
+    typeof window !== "undefined"
+      ? window.localStorage.getItem("authToken")
+      : null;
+
+  const headers: HeadersInit = storedToken
+    ? { Authorization: `Bearer ${storedToken}` }
+    : {};
+
+  const res = await fetch(`${BASE}/email/custom-pdf`, {
+    method: "POST",
+    credentials: "include",
+    headers,
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || "Failed to send PDF by email");
+  }
+
+  return res.json() as Promise<{ success: boolean; message: string }>;
+};
 
 /**
  * Public endpoint for guest users to fetch district-wide notifications

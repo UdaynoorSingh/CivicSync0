@@ -31,6 +31,66 @@ const normalizePhone = (value: string): string => value.replace(/\D/g, "");
 const getConfiguredHeadAdminPhone = (): string =>
   normalizePhone(process.env.HEAD_ADMIN_PHONE ?? "");
 
+const getConfiguredHeadAdminCredentials = (): { username: string; password: string } => ({
+  username: process.env.HEAD_ADMIN_USERNAME ?? "head01",
+  password: process.env.HEAD_ADMIN_PASS ?? "",
+});
+
+const HEAD_ADMIN_ID = "head-admin-main";
+
+export const headAdminLogin = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const { username, password } = req.body as { username?: string; password?: string };
+
+    if (!username || !password) {
+      res.status(400).json({ success: false, message: "Username and password are required." });
+      return;
+    }
+
+    const { username: configuredUsername, password: configuredPassword } = getConfiguredHeadAdminCredentials();
+
+    if (!configuredPassword) {
+      res.status(500).json({
+        success: false,
+        message: "HEAD_ADMIN_PASS is not configured in backend .env.",
+      });
+      return;
+    }
+
+    if (username !== configuredUsername || password !== configuredPassword) {
+      res.status(401).json({ success: false, message: "Invalid username or password." });
+      return;
+    }
+
+    const token = signToken(
+      {
+        id: HEAD_ADMIN_ID,
+        role: "head_admin",
+        districtId: "",
+      },
+      HEAD_ADMIN_TTL,
+    );
+    setTokenCookie(res, token, HEAD_ADMIN_TTL);
+
+    res.status(200).json({
+      success: true,
+      message: "Head admin login successful.",
+      token,
+      admin: {
+        id: HEAD_ADMIN_ID,
+        name: "Head Admin",
+        role: "head_admin",
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 const getDefaultDistrict = async () => {
   const configured = process.env.HEAD_ADMIN_DEFAULT_DISTRICT;
 
@@ -291,15 +351,11 @@ export const getHeadAdminMe = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const configured = getConfiguredHeadAdminPhone();
-  const mobile = req.user?.id ?? configured;
-
   res.status(200).json({
     success: true,
     admin: {
-      id: req.user?.id ?? mobile,
+      id: req.user?.id ?? HEAD_ADMIN_ID,
       name: "Head Admin",
-      mobile,
       role: "head_admin" as const,
     },
   });

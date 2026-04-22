@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { CheckCircle, Download, MessageSquare, Home } from "lucide-react";
+import { CheckCircle, Download, Mail, Home } from "lucide-react";
 import MascotGuide from "../../components/shared/MascotGuide";
+import EmailModal from "../../components/shared/EmailModal";
 import { useTranslation } from "../../lib/i18n";
 import {
   downloadPaymentReceipt,
   getPaymentById,
+  sendPaymentReceiptByEmail,
   type PaymentSummary,
 } from "../../lib/api";
 
@@ -32,6 +34,7 @@ export default function PaymentSuccessPage() {
   );
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState("");
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
   const bill = locationState.bill;
 
   useEffect(() => {
@@ -163,8 +166,12 @@ export default function PaymentSuccessPage() {
         {downloadError ? (
           <p className="text-red-600 text-xs text-center">{downloadError}</p>
         ) : null}
-        <button className="w-full py-3 rounded-xl border-2 border-gray-200 text-gray-600 font-semibold flex items-center gap-2 justify-center hover:bg-gray-50 transition-colors">
-          <MessageSquare size={18} /> {t("sendSms")}
+        <button
+          onClick={() => setEmailModalOpen(true)}
+          disabled={!payment?.id || payment.status !== "success"}
+          className="w-full py-3 rounded-xl border-2 border-gray-200 text-gray-600 font-semibold flex items-center gap-2 justify-center hover:bg-gray-50 transition-colors disabled:opacity-50"
+        >
+          <Mail size={18} /> Send via Email
         </button>
         <button
           onClick={() => navigate("/citizen")}
@@ -173,6 +180,19 @@ export default function PaymentSuccessPage() {
           <Home size={18} /> {t("goHome")}
         </button>
       </motion.div>
+
+      <EmailModal
+        open={emailModalOpen}
+        onClose={() => setEmailModalOpen(false)}
+        onSubmit={async (email) => {
+          if (!payment?.id) throw new Error("Payment not available");
+          await sendPaymentReceiptByEmail({ paymentId: payment.id, email });
+        }}
+        title="Send Receipt via Email"
+        description="Enter the recipient's email address to receive the payment receipt as a PDF attachment."
+        loadingLabel="Sending..."
+        successMessage="Receipt sent successfully!"
+      />
     </div>
   );
 }
