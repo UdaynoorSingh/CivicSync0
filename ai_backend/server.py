@@ -14,7 +14,7 @@ from ChatBot import Query_answer
 from Ai_image_Validator import process_complaint
 import tempfile
 from llm_fallback import call_llm_with_fallback_async
-from Voice_Navigation import get_voice_intent
+from Voice_Navigation import get_voice_intent, extract_form_field_value
 
 load_dotenv()
 
@@ -156,7 +156,7 @@ async def voice_stt(audio: UploadFile = File(...)):
         resp = await client.post(
             "https://api.groq.com/openai/v1/audio/transcriptions",
             headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
-            data={"model": "whisper-large-v3", "language": "en"},
+            data={"model": "whisper-large-v3"},
             files={"file": (audio.filename or "recording.webm", audio_bytes, audio.content_type or "audio/webm")},
         )
     
@@ -181,6 +181,23 @@ async def voice_intent(req: IntentRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+class FormFieldRequest(BaseModel):
+    field_label: str
+    field_type: str  # "select", "text", "radio"
+    options: List[str] = []
+    user_text: str
+
+@app.post("/voice/form-field")
+async def voice_form_field(req: FormFieldRequest):
+    """Extract a structured form field value from the user's spoken answer."""
+    try:
+        result = await extract_form_field_value(
+            req.field_label, req.field_type, req.options, req.user_text
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/voice/chat")
 async def voice_chat(audio: UploadFile = File(...)):
     """Full RAG voice pipeline: Audio → STT → RAG Answer → TTS → Audio response.
@@ -195,7 +212,7 @@ async def voice_chat(audio: UploadFile = File(...)):
         stt_resp = await client.post(
             "https://api.groq.com/openai/v1/audio/transcriptions",
             headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
-            data={"model": "whisper-large-v3", "language": "en"},
+            data={"model": "whisper-large-v3"},
             files={"file": (audio.filename or "recording.webm", audio_bytes, audio.content_type or "audio/webm")},
         )
     

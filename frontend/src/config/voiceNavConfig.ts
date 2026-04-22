@@ -8,11 +8,33 @@ export interface VoiceAction {
   target_route: string;
 }
 
+export interface VoiceFormField {
+  key: string;              // State key to set (e.g. "department", "category")
+  label: string;            // Human label for display / LLM context
+  tts_prompt: string;       // Hindi TTS question read to the user
+  type: "select" | "text" | "radio";
+  options?: string[];        // Static options (for select/radio)
+  depends_on?: string;       // e.g. "category" depends on "department"
+  step: number;             // Which form step this field appears on (1, 2, 3)
+  skip_if_prefilled?: boolean;
+  required?: boolean;
+}
+
 export interface VoiceRouteConfig {
   page_name: string;
   tts_greeting: string;
   valid_actions: VoiceAction[];
+  form_fields?: VoiceFormField[];  // Present only on form pages
 }
+
+// ── Department → Category mapping (mirrors RegisterComplaintPage.tsx) ─────────
+export const DEPT_CATEGORIES: Record<string, string[]> = {
+  "Electricity": ["Power Outage", "Streetlight Fault", "Meter Issue", "Voltage Fluctuation", "Other"],
+  "Water Supply": ["Water Leakage", "Water Contamination", "Low Pressure", "No Water Supply", "Other"],
+  "Gas Supply": ["Gas Leak", "Low Gas Pressure", "Pipeline Damage", "Other"],
+  "Sanitation": ["Sewage Overflow", "Blocked Drain", "Public Toilet Issue", "Other"],
+  "Waste Management": ["Garbage Not Collected", "Illegal Dumping", "Road Cleaning", "Other"],
+};
 
 /**
  * Maps route paths to their voice navigation context.
@@ -69,10 +91,95 @@ export const voiceNavConfig: Record<string, VoiceRouteConfig> = {
   "/citizen/complaint/new": {
     page_name: "Register Complaint",
     tts_greeting:
-      "आप शिकायत दर्ज करने के पेज पर हैं। यहाँ आप अपनी समस्या की श्रेणी चुन सकते हैं, समस्या का विवरण लिख सकते हैं, और एक फोटो अपलोड कर सकते हैं। फॉर्म भरने के बाद सबमिट करें। आप वापस डैशबोर्ड पर भी जा सकते हैं।",
+      "आप शिकायत दर्ज करने के पेज पर हैं। मैं आपकी मदद करूँगा एक-एक करके फॉर्म भरने में। चलिए शुरू करते हैं।",
     valid_actions: [
-      { intent: "submit_complaint", description: "Submit the complaint form", target_route: "/citizen/complaint/confirm" },
       { intent: "go_back", description: "Go back to dashboard", target_route: "/citizen" },
+    ],
+    form_fields: [
+      // ── Step 1: Department ──
+      {
+        key: "department",
+        label: "Department",
+        tts_prompt: "कृपया विभाग चुनें। विकल्प हैं: बिजली, पानी, गैस, स्वच्छता, या कचरा प्रबंधन।",
+        type: "select",
+        options: ["Electricity", "Water Supply", "Gas Supply", "Sanitation", "Waste Management"],
+        step: 1,
+        required: true,
+      },
+      // ── Step 2: Issue Details ──
+      {
+        key: "scope",
+        label: "Complaint Scope",
+        tts_prompt: "यह समस्या आपकी व्यक्तिगत है या पूरे इलाके की? कृपया बताएं: पर्सनल या लोकैलिटी।",
+        type: "radio",
+        options: ["personal", "locality"],
+        step: 2,
+        required: true,
+      },
+      {
+        key: "category",
+        label: "Issue Category",
+        tts_prompt: "कृपया समस्या की श्रेणी चुनें।",
+        type: "select",
+        depends_on: "department",
+        step: 2,
+        required: true,
+      },
+      {
+        key: "description",
+        label: "Description",
+        tts_prompt: "कृपया अपनी समस्या का विस्तार से वर्णन करें। कम से कम दस शब्दों में बताएं।",
+        type: "text",
+        step: 2,
+        required: true,
+      },
+      {
+        key: "urgency",
+        label: "Urgency Level",
+        tts_prompt: "समस्या कितनी जरूरी है? विकल्प हैं: कम, मध्यम, या अधिक।",
+        type: "radio",
+        options: ["Low", "Medium", "High"],
+        step: 2,
+        required: true,
+      },
+      // Note: Photo upload is skipped in voice mode — handled manually
+      // ── Step 3: Location ──
+      {
+        key: "state",
+        label: "State",
+        tts_prompt: "कृपया अपना राज्य बताएं।",
+        type: "text",
+        step: 3,
+        skip_if_prefilled: true,
+        required: true,
+      },
+      {
+        key: "district",
+        label: "City / District",
+        tts_prompt: "कृपया अपना शहर या जिला बताएं।",
+        type: "text",
+        step: 3,
+        skip_if_prefilled: true,
+        required: true,
+      },
+      {
+        key: "pincode",
+        label: "Pincode",
+        tts_prompt: "कृपया अपना छह अंकों का पिनकोड बताएं।",
+        type: "text",
+        step: 3,
+        skip_if_prefilled: true,
+        required: true,
+      },
+      {
+        key: "streetAddress",
+        label: "Street / Area",
+        tts_prompt: "कृपया अपना पूरा पता बताएं, जैसे मकान नंबर, गली, मोहल्ला।",
+        type: "text",
+        step: 3,
+        skip_if_prefilled: true,
+        required: true,
+      },
     ],
   },
 
@@ -89,10 +196,78 @@ export const voiceNavConfig: Record<string, VoiceRouteConfig> = {
   "/citizen/service/new": {
     page_name: "New Service Request",
     tts_greeting:
-      "आप नई सेवा कनेक्शन के आवेदन पेज पर हैं। यहाँ आप बिजली, पानी या गैस के नए कनेक्शन के लिए आवेदन कर सकते हैं। अपना विवरण भरें और सबमिट करें। आप वापस डैशबोर्ड पर भी जा सकते हैं।",
+      "आप नई सेवा कनेक्शन के आवेदन पेज पर हैं। मैं आपकी मदद करूँगा एक-एक करके फॉर्म भरने में। चलिए शुरू करते हैं।",
     valid_actions: [
-      { intent: "submit_request", description: "Submit service request", target_route: "/citizen/service/confirm" },
       { intent: "go_back", description: "Go back to dashboard", target_route: "/citizen" },
+    ],
+    form_fields: [
+      // ── Step 1: Service Type ──
+      {
+        key: "serviceType",
+        label: "Service Type",
+        tts_prompt: "कृपया सेवा का प्रकार चुनें। विकल्प हैं: बिजली कनेक्शन, पानी कनेक्शन, या गैस कनेक्शन।",
+        type: "select",
+        options: ["Electricity Connection", "Water Connection", "Gas Connection"],
+        step: 1,
+        required: true,
+      },
+      // ── Step 2: Personal Details ──
+      {
+        key: "applicantName",
+        label: "Full Name",
+        tts_prompt: "कृपया अपना पूरा नाम बताएं।",
+        type: "text",
+        step: 2,
+        skip_if_prefilled: true,
+        required: true,
+      },
+      {
+        key: "contactPhone",
+        label: "Contact Phone",
+        tts_prompt: "कृपया अपना दस अंकों का मोबाइल नंबर बताएं।",
+        type: "text",
+        step: 2,
+        skip_if_prefilled: true,
+        required: true,
+      },
+      {
+        key: "streetAddress",
+        label: "Street Address",
+        tts_prompt: "कृपया अपना पूरा पता बताएं, जैसे मकान नंबर, गली, मोहल्ला।",
+        type: "text",
+        step: 2,
+        skip_if_prefilled: true,
+        required: true,
+      },
+      {
+        key: "state",
+        label: "State",
+        tts_prompt: "कृपया अपना राज्य बताएं।",
+        type: "text",
+        step: 2,
+        skip_if_prefilled: true,
+        required: true,
+      },
+      {
+        key: "district",
+        label: "City / District",
+        tts_prompt: "कृपया अपना शहर या जिला बताएं।",
+        type: "text",
+        step: 2,
+        skip_if_prefilled: true,
+        required: true,
+      },
+      {
+        key: "pincode",
+        label: "Pincode",
+        tts_prompt: "कृपया अपना छह अंकों का पिनकोड बताएं।",
+        type: "text",
+        step: 2,
+        skip_if_prefilled: true,
+        required: true,
+      },
+      // Step 3 (Upload Documents) is skipped in voice mode
+      // Step 4 (Review) is handled by the voice loop finishing
     ],
   },
 

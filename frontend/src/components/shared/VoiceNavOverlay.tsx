@@ -1,10 +1,11 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Mic, MicOff, Volume2, Loader2, AlertCircle } from "lucide-react";
+import { Mic, MicOff, Volume2, Loader2, AlertCircle, FileText } from "lucide-react";
 import { useVoiceNavStore } from "../../store/voiceNavStore";
 import { useVoiceNavigation } from "../../hooks/useVoiceNavigation";
 
 /**
  * Floating overlay showing the current voice navigation phase.
+ * Enhanced with form-filling mode indicators.
  * Rendered inside KioskLayout alongside the AI chat widget.
  */
 export default function VoiceNavOverlay() {
@@ -13,6 +14,12 @@ export default function VoiceNavOverlay() {
   const transcript = useVoiceNavStore((s) => s.transcript);
   const errorMessage = useVoiceNavStore((s) => s.errorMessage);
   const toggle = useVoiceNavStore((s) => s.toggle);
+
+  // Form filling state
+  const formFillingActive = useVoiceNavStore((s) => s.formFillingActive);
+  const currentFieldIndex = useVoiceNavStore((s) => s.currentFieldIndex);
+  const totalFields = useVoiceNavStore((s) => s.totalFields);
+  const currentFieldLabel = useVoiceNavStore((s) => s.currentFieldLabel);
 
   // Activate the orchestration hook
   const { stopRecording } = useVoiceNavigation();
@@ -44,12 +51,39 @@ export default function VoiceNavOverlay() {
             className="fixed bottom-32 left-4 z-1100 w-72 rounded-2xl shadow-2xl overflow-hidden bg-white border border-gray-100"
           >
             {/* Header */}
-            <div className="bg-gradient-to-r from-[#1E3A5F] to-[#2a5280] text-white px-4 py-2.5 flex items-center gap-2">
+            <div className={`text-white px-4 py-2.5 flex items-center gap-2 ${
+              formFillingActive
+                ? "bg-gradient-to-r from-emerald-600 to-emerald-500"
+                : "bg-gradient-to-r from-[#1E3A5F] to-[#2a5280]"
+            }`}>
               <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-xs font-semibold tracking-wide uppercase">
-                Voice Navigation
+              <span className="text-xs font-semibold tracking-wide uppercase flex-1">
+                {formFillingActive ? "Voice Form Filling" : "Voice Navigation"}
               </span>
+              {formFillingActive && totalFields > 0 && (
+                <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full">
+                  {currentFieldIndex + 1}/{totalFields}
+                </span>
+              )}
             </div>
+
+            {/* Form Filling Field Info */}
+            {formFillingActive && currentFieldLabel && (
+              <div className="px-4 py-2 bg-emerald-50 border-b border-emerald-100 flex items-center gap-2">
+                <FileText size={14} className="text-emerald-600 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] text-emerald-600 font-medium uppercase tracking-wider">Current Field</p>
+                  <p className="text-sm font-semibold text-gray-800 truncate">{currentFieldLabel}</p>
+                </div>
+                {/* Progress bar */}
+                <div className="w-12 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                    style={{ width: `${totalFields > 0 ? ((currentFieldIndex + 1) / totalFields) * 100 : 0}%` }}
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Body */}
             <div className="p-4 space-y-3">
@@ -61,7 +95,9 @@ export default function VoiceNavOverlay() {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-800">Speaking…</p>
-                    <p className="text-xs text-gray-500">Listening to your assistant</p>
+                    <p className="text-xs text-gray-500">
+                      {formFillingActive ? "Reading the question" : "Listening to your assistant"}
+                    </p>
                   </div>
                   {/* Sound wave animation */}
                   <div className="flex items-center gap-0.5 ml-auto">
@@ -94,7 +130,9 @@ export default function VoiceNavOverlay() {
                   </motion.div>
                   <div className="flex-1">
                     <p className="text-sm font-medium text-gray-800">Listening…</p>
-                    <p className="text-xs text-gray-500">Speak now, I'm listening</p>
+                    <p className="text-xs text-gray-500">
+                      {formFillingActive ? "Say your answer" : "Speak now, I'm listening"}
+                    </p>
                   </div>
                   <button
                     onClick={stopRecording}
