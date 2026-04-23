@@ -444,6 +444,16 @@ export function useVoiceNavigation() {
           const nextField = formFields[fieldIndex];
           const currentField = formFields[fieldIndex - 1];
           if (nextField.step > currentField.step) {
+            // Special handling: Before moving to Step 3 in complaint form, remind user to upload photo
+            if (pathname === "/citizen/complaint/new" && currentField.step === 2 && nextField.step === 3) {
+              await playGreeting("चरण दो पूरा हुआ। कृपया समस्या की एक फोटो अपलोड करने के लिए स्क्रीन पर tap करें। फोटो अपलोड करने के बाद, मैं आगे बढ़ूँगा।");
+              if (abortRef.current) return;
+
+              // Wait for user to interact with the upload button
+              await new Promise(resolve => setTimeout(resolve, 5000));
+              if (abortRef.current) return;
+            }
+
             // Announce step transition
             const stepMsg = nextField.step === 2
               ? "चरण एक पूरा हुआ। अब चरण दो पर चलते हैं।"
@@ -456,16 +466,6 @@ export function useVoiceNavigation() {
             // Dispatch step change
             dispatchStepChange(nextField.step);
           }
-        }
-
-        // Special handling: after photo-related fields, remind user to upload photo manually
-        if (pathname === "/citizen/complaint/new" && field.key === "urgency") {
-          await playGreeting("कृपया समस्या की एक फोटो अपलोड करने के लिए स्क्रीन पर tap करें। फोटो अपलोड करने के बाद, मैं आगे बढ़ूँगा।");
-          if (abortRef.current) return;
-
-          // Wait a bit for user to tap the upload
-          await new Promise(resolve => setTimeout(resolve, 5000));
-          if (abortRef.current) return;
         }
       }
 
