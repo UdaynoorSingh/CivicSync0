@@ -312,6 +312,14 @@ export function useVoiceNavigation() {
         setCurrentFieldIndex(fieldIndex);
         setCurrentFieldLabel(field.label);
 
+        if (field.show_if) {
+          const currentFormValues = useVoiceNavStore.getState().formValues;
+          if (currentFormValues[field.show_if.field] !== field.show_if.value) {
+            fieldIndex++;
+            continue;
+          }
+        }
+
         // Skip pre-filled fields if configured
         if (field.skip_if_prefilled && prefilledValues[field.key]) {
           const prefVal = prefilledValues[field.key];
@@ -351,6 +359,13 @@ export function useVoiceNavigation() {
           // 1. Ask the question via TTS
           await playGreeting(ttsPrompt);
           if (abortRef.current) return;
+
+          if (field.type === "manual") {
+            await new Promise(resolve => setTimeout(resolve, 8000));
+            if (abortRef.current) return;
+            fieldFilled = true;
+            break;
+          }
 
           // 2. Record user's answer
           const audioBlob = await recordMic();
@@ -455,13 +470,21 @@ export function useVoiceNavigation() {
             }
 
             // Announce step transition
-            const stepMsg = nextField.step === 2
-              ? "चरण एक पूरा हुआ। अब चरण दो पर चलते हैं।"
-              : nextField.step === 3
-                ? "अब आखिरी चरण पर चलते हैं, स्थान की जानकारी भरें।"
-                : "अगले चरण पर चलते हैं।";
-            await playGreeting(stepMsg);
-            if (abortRef.current) return;
+            let stepMsg = "अगले चरण पर चलते हैं।";
+            if (nextField.step === 2) {
+              stepMsg = "चरण एक पूरा हुआ। अब चरण दो पर चलते हैं।";
+            } else if (nextField.step === 3) {
+              if (pathname === "/citizen/complaint/new") {
+                stepMsg = "अब आखिरी चरण पर चलते हैं, स्थान की जानकारी भरें।";
+              } else if (pathname === "/citizen/service/new") {
+                stepMsg = ""; // Handled by the manual field's own tts_prompt
+              }
+            }
+            
+            if (stepMsg) {
+              await playGreeting(stepMsg);
+              if (abortRef.current) return;
+            }
 
             // Dispatch step change
             dispatchStepChange(nextField.step);

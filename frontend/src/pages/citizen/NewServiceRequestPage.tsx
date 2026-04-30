@@ -151,6 +151,22 @@ export default function NewServiceRequestPage() {
           }
           break;
         }
+        case "requestType": {
+          const typeMap: Record<string, string> = {
+             "New Connection": "new_connection",
+             "Meter Replacement": "meter_replacement",
+             "Load Increment": "load_increment"
+          };
+          const mappedType = typeMap[value];
+          if (mappedType) {
+             setRequestType(mappedType);
+          }
+          break;
+        }
+        case "requestedLoadIncrease": {
+          setRequestedLoadIncrease(value);
+          break;
+        }
         case "applicantName":
           setApplicantName(value);
           break;

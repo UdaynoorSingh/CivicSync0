@@ -12,12 +12,13 @@ export interface VoiceFormField {
   key: string;              // State key to set (e.g. "department", "category")
   label: string;            // Human label for display / LLM context
   tts_prompt: string;       // Hindi TTS question read to the user
-  type: "select" | "text" | "radio";
+  type: "select" | "text" | "radio" | "manual";
   options?: string[];        // Static options (for select/radio)
   depends_on?: string;       // e.g. "category" depends on "department"
   step: number;             // Which form step this field appears on (1, 2, 3)
   skip_if_prefilled?: boolean;
   required?: boolean;
+  show_if?: { field: string; value: string }; // Optional condition to show field
 }
 
 export interface VoiceRouteConfig {
@@ -211,6 +212,16 @@ export const voiceNavConfig: Record<string, VoiceRouteConfig> = {
         step: 1,
         required: true,
       },
+      {
+        key: "requestType",
+        label: "Request Type",
+        tts_prompt: "कृपया अनुरोध का प्रकार चुनें। विकल्प हैं: नया कनेक्शन, मीटर रिप्लेसमेंट, या लोड इंक्रीमेंट।",
+        type: "select",
+        options: ["New Connection", "Meter Replacement", "Load Increment"],
+        step: 1,
+        required: true,
+        show_if: { field: "serviceType", value: "Electricity Connection" }
+      },
       // ── Step 2: Personal Details ──
       {
         key: "applicantName",
@@ -266,7 +277,24 @@ export const voiceNavConfig: Record<string, VoiceRouteConfig> = {
         skip_if_prefilled: true,
         required: true,
       },
-      // Step 3 (Upload Documents) is skipped in voice mode
+      {
+        key: "requestedLoadIncrease",
+        label: "Requested Load Increase",
+        tts_prompt: "कृपया लोड इंक्रीमेंट बताएं, किलोवाट में। जैसे 2 पॉइंट 5 या 5।",
+        type: "text",
+        step: 2,
+        required: true,
+        show_if: { field: "requestType", value: "Load Increment" }
+      },
+      // ── Step 3: Upload Documents ──
+      {
+        key: "documentUpload",
+        label: "Document Upload",
+        tts_prompt: "चरण दो पूरा हुआ। कृपया पहचान और पते का प्रमाण अपलोड करने के लिए स्क्रीन पर टैप करें। मैं आपके अपलोड करने का इंतज़ार कर रहा हूँ।",
+        type: "manual",
+        step: 3,
+        required: false,
+      },
       // Step 4 (Review) is handled by the voice loop finishing
     ],
   },
